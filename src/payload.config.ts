@@ -6,10 +6,9 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
-import Sponsees from './collections/Sponsees'
-import Sponsors from './collections/Sponsors'
+import Courses from './collections/Courses'
+import Simulations from './collections/Simulations'
 import { s3Storage } from '@payloadcms/storage-s3'
-import Gallery from './collections/Gallery'
 import slugify from 'slugify' // You might need to install this package: npm install slugify
 
 const filename = fileURLToPath(import.meta.url)
@@ -35,7 +34,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Sponsees, Sponsors, Gallery],
+  collections: [Users, Media, Courses, Simulations],
   editor: lexicalEditor(),
   secret: '999a184aee931b24ea650729',
   typescript: {
@@ -43,7 +42,7 @@ export default buildConfig({
   },
   db: postgresAdapter({
     pool: {
-      connectionString: 'postgresql://postgres.ntckmekstkqxqgigqzgn:XPyeJd0BCLFrNq38@aws-0-us-west-1.pooler.supabase.com:6543/postgres',
+      connectionString: process.env.DATABASE_URI,
     },
   }),
   sharp,
@@ -61,11 +60,11 @@ export default buildConfig({
       config: {
         forcePathStyle: true,
         credentials: {
-          accessKeyId: '94c26e9b5a379acc48142f9c7498f973',
-          secretAccessKey: '03b9c7e3a22515e889d93d4d5820ac903c3a450490eca7027db515fe8438d6c4',
+          accessKeyId: '001193540c399274d13b9c08d188a377',
+          secretAccessKey: 'df3d6c24099cab8a75783ed2cfe2aeadfbe0b1f69e6e50371d0940fdbae11ac6',
         },
         region: 'us-west-1',
-        endpoint: 'https://ntckmekstkqxqgigqzgn.supabase.co/storage/v1/s3',
+        endpoint: 'https://hykhltcjktdczownctqf.supabase.co/storage/v1/s3',
       },
     }),
   ],

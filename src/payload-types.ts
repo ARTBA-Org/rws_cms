@@ -13,9 +13,8 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
-    sponsees: Sponsee;
-    sponsors: Sponsor;
-    gallery: Gallery;
+    courses: Course;
+    simulations: Simulation;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -85,72 +84,58 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "sponsees".
+ * via the `definition` "courses".
  */
-export interface Sponsee {
+export interface Course {
   id: number;
-  FullName: string;
-  DateOfBirth?: string | null;
-  Gender?: ('male' | 'female' | 'other') | null;
-  Location?: string | null;
-  AcademicProgress?: string | null;
-  LastMessage?: string | null;
-  ProfilePicture?: (number | null) | Media;
-  Gallery?: (number | null) | Gallery;
-  Milestones?: string | null;
-  ContributionsUsedFor?: string | null;
-  SponsorshipDuration?: number | null;
-  DonatedAmount?: number | null;
-  LastUpdate?: string | null;
-  Documents?:
+  Title: string;
+  LearningObjectives?: string | null;
+  TopicsCovered?:
     | {
-        document?: (number | null) | Media;
+        topic?: string | null;
         id?: string | null;
       }[]
     | null;
+  PowerPoint?: (number | null) | Media;
+  Handouts?:
+    | {
+        handout?: (number | null) | Media;
+        id?: string | null;
+      }[]
+    | null;
+  Interaction?: string | null;
+  Assessments?:
+    | {
+        assessment?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  Files?:
+    | {
+        file?: (number | null) | Media;
+        id?: string | null;
+      }[]
+    | null;
+  relatedSimulations?: (number | Simulation)[] | null;
   updatedAt: string;
   createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "gallery".
+ * via the `definition` "simulations".
  */
-export interface Gallery {
+export interface Simulation {
   id: number;
-  name: string;
+  title: string;
+  url: string;
   description?: string | null;
-  sponsee: number | Sponsee;
-  media?:
+  tags?:
     | {
-        mediaType?: ('image' | 'video') | null;
-        image?: (number | null) | Media;
-        video?: (number | null) | Media;
-        caption?: string | null;
+        tag?: string | null;
         id?: string | null;
       }[]
     | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "sponsors".
- */
-export interface Sponsor {
-  id: number;
-  firstName: string;
-  lastName: string;
-  email?: string | null;
-  amount?: number | null;
-  firstPaymentDate?: string | null;
-  lastPaymentDate?: string | null;
-  address?: string | null;
-  city?: string | null;
-  postalCode?: string | null;
-  country?: string | null;
-  region?: string | null;
-  phone?: string | null;
-  sponsee?: (number | Sponsee)[] | null;
+  thumbnail?: (number | null) | Media;
   updatedAt: string;
   createdAt: string;
 }
@@ -170,16 +155,12 @@ export interface PayloadLockedDocument {
         value: number | Media;
       } | null)
     | ({
-        relationTo: 'sponsees';
-        value: number | Sponsee;
+        relationTo: 'courses';
+        value: number | Course;
       } | null)
     | ({
-        relationTo: 'sponsors';
-        value: number | Sponsor;
-      } | null)
-    | ({
-        relationTo: 'gallery';
-        value: number | Gallery;
+        relationTo: 'simulations';
+        value: number | Simulation;
       } | null);
   globalSlug?: string | null;
   user: {
