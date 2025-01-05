@@ -3,7 +3,6 @@ import type { CollectionConfig } from 'payload';
 const Media: CollectionConfig = {
   slug: 'media',
   upload: {
-    staticURL: '/media',
     staticDir: 'media',
     imageSizes: [
       {
