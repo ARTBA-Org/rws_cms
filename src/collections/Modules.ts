@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload';
+import type { CollectionConfig } from 'payload'
 
 const Modules: CollectionConfig = {
   slug: 'modules',
@@ -19,7 +19,6 @@ const Modules: CollectionConfig = {
     {
       name: 'learningObjectives',
       type: 'array',
-      required: true,
       fields: [
         {
           name: 'objective',
@@ -29,58 +28,11 @@ const Modules: CollectionConfig = {
     },
     {
       name: 'slides',
-      type: 'array',
-      required: true,
-      admin: {
-        components: {
-          RowLabel: ({ data }) => {
-            return data?.title || 'Slide';
-          },
-        },
-      },
-      fields: [
-        {
-          name: 'slide',
-          type: 'relationship',
-          relationTo: 'slides',
-          required: true,
-        },
-        {
-          name: 'order',
-          type: 'number',
-          admin: {
-            step: 1,
-          },
-        },
-        {
-          name: 'isActive',
-          type: 'checkbox',
-          defaultValue: true,
-          admin: {
-            description: 'Use this to temporarily disable a slide without removing it',
-          },
-        },
-      ],
-    },
-    {
-      name: 'slidesCount',
-      type: 'number',
-      admin: {
-        position: 'sidebar',
-        description: 'Total number of slides in this module',
-      },
-      hooks: {
-        beforeChange: [
-          ({ siblingData }) => {
-            if (siblingData.slides) {
-              return siblingData.slides.length;
-            }
-            return 0;
-          },
-        ],
-      },
+      type: 'relationship',
+      relationTo: 'slides',
+      hasMany: true,
     },
   ],
-};
+}
 
-export default Modules; 
+export default Modules

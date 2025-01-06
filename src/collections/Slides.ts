@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload';
+import type { CollectionConfig } from 'payload'
 
 const Slides: CollectionConfig = {
   slug: 'slides',
@@ -14,28 +14,55 @@ const Slides: CollectionConfig = {
     {
       name: 'content',
       type: 'richText',
-      required: true,
     },
     {
       name: 'image',
       type: 'upload',
       relationTo: 'media',
-      required: false,
     },
     {
       name: 'type',
       type: 'select',
-      required: true,
-      options: [
-        { label: 'Regular', value: 'regular' },
-        { label: 'Video', value: 'video' },
-        { label: 'Quiz', value: 'quiz' },
-        { label: 'Reference', value: 'reference' },
-        { label: 'Resources', value: 'resources' },
-      ],
+      required: false,
       defaultValue: 'regular',
+      enumName: 'slide_type_enum',
+      options: [
+        {
+          label: 'Regular',
+          value: 'regular',
+        },
+        {
+          label: 'Video',
+          value: 'video',
+        },
+        {
+          label: 'Quiz',
+          value: 'quiz',
+        },
+        {
+          label: 'Reference',
+          value: 'reference',
+        },
+        {
+          label: 'Resources',
+          value: 'resources',
+        },
+      ],
+      admin: {
+        isClearable: false,
+      },
+    },
+    {
+      name: 'urls',
+      type: 'array',
+      fields: [
+        {
+          name: 'url',
+          type: 'text',
+        },
+      ],
     },
   ],
-};
+}
 
-export default Slides; 
+export default Slides

@@ -21,7 +21,6 @@ const Courses: CollectionConfig = {
       type: 'relationship',
       relationTo: 'modules',
       hasMany: true,
-      required: true,
     },
   ],
 };

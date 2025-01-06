@@ -128,7 +128,7 @@ export interface Course {
   id: number;
   title: string;
   description: string;
-  modules: (number | Module)[];
+  modules?: (number | Module)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -140,17 +140,13 @@ export interface Module {
   id: number;
   title: string;
   description?: string | null;
-  learningObjectives: {
-    objective?: string | null;
-    id?: string | null;
-  }[];
-  slides: {
-    slide: number | Slide;
-    order?: number | null;
-    isActive?: boolean | null;
-    id?: string | null;
-  }[];
-  slidesCount?: number | null;
+  learningObjectives?:
+    | {
+        objective?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  slides?: (number | Slide)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -161,7 +157,7 @@ export interface Module {
 export interface Slide {
   id: number;
   title: string;
-  content: {
+  content?: {
     root: {
       type: string;
       children: {
@@ -175,9 +171,15 @@ export interface Slide {
       version: number;
     };
     [k: string]: unknown;
-  };
+  } | null;
   image?: (number | null) | Media;
-  type: 'regular' | 'video' | 'quiz' | 'reference' | 'resources';
+  type?: ('regular' | 'video' | 'quiz' | 'reference' | 'resources') | null;
+  urls?:
+    | {
+        url?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -334,15 +336,7 @@ export interface ModulesSelect<T extends boolean = true> {
         objective?: T;
         id?: T;
       };
-  slides?:
-    | T
-    | {
-        slide?: T;
-        order?: T;
-        isActive?: T;
-        id?: T;
-      };
-  slidesCount?: T;
+  slides?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -355,6 +349,12 @@ export interface SlidesSelect<T extends boolean = true> {
   content?: T;
   image?: T;
   type?: T;
+  urls?:
+    | T
+    | {
+        url?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
