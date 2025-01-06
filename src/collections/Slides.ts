@@ -13,7 +13,7 @@ const Slides: CollectionConfig = {
     },
     {
       name: 'content',
-      type: 'richText',
+      type: 'textarea',
     },
     {
       name: 'image',

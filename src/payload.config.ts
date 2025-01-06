@@ -41,10 +41,8 @@ export default buildConfig({
       collections: {
         media: {
           prefix: 'media',
-          generateFileURL: ({ filename }) =>
-            `https://Media.s3.amazonaws.com/media/${filename}`,
+          generateFileURL: ({ filename }) => `https://Media.s3.amazonaws.com/media/${filename}`,
         },
-       
       },
       bucket: 'Media',
       config: {
