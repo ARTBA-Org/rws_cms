@@ -18,9 +18,9 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 // S3 Configuration
-const AWS_ACCESS_KEY = "AKIAUGLYLUJBDKEQ7VTW"
-const AWS_SECRET_KEY = "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"
-const AWS_REGION = "us-east-1"
+const AWS_ACCESS_KEY = 'AKIAUGLYLUJBDKEQ7VTW'
+const AWS_SECRET_KEY = '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'
+const AWS_REGION = 'us-east-1'
 
 export default buildConfig({
   admin: {
@@ -31,13 +31,13 @@ export default buildConfig({
   },
   collections: [Users, Media, Courses, Modules, Slides],
   editor: lexicalEditor(),
-  secret: process.env.PAYLOAD_SECRET || '',
+  secret: 'your-strong-random-secret-here',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: postgresAdapter({
     pool: {
-      connectionString: process.env.DATABASE_URI || '',
+      connectionString: 'postgres://username:password@localhost:5432/database_name',
     },
   }),
   sharp,
@@ -46,17 +46,18 @@ export default buildConfig({
       collections: {
         media: {
           prefix: 'media',
-          generateFileURL: ({ filename }) => `https://rsfilesdata.s3.amazonaws.com/media/${filename}`,
+          generateFileURL: ({ filename }) =>
+            `https://rsfilesdata.s3.amazonaws.com/media/${filename}`,
         },
       },
       bucket: 'rsfilesdata',
       config: {
         forcePathStyle: true,
         credentials: {
-          accessKeyId: AWS_ACCESS_KEY,
-          secretAccessKey: AWS_SECRET_KEY,
+          accessKeyId: 'AKIAUGLYLUJBDKEQ7VTW',
+          secretAccessKey: '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',
         },
-        region: AWS_REGION,
+        region: 'us-east-1',
         endpoint: 'https://rsfilesdata.s3.amazonaws.com',
       },
     }),
