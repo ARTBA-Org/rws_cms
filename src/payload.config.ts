@@ -37,7 +37,8 @@ export default buildConfig({
   },
   db: postgresAdapter({
     pool: {
-      connectionString: 'postgres://username:password@localhost:5432/database_name',
+      connectionString:
+        'postgresql://postgres.nwquaemdrfuhafnugbgl:oUjZXbDAM2VqDgiZ@aws-0-us-west-1.pooler.supabase.com:6543/postgres',
     },
   }),
   sharp,
