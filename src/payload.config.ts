@@ -17,6 +17,11 @@ import Slides from './collections/Slides'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// S3 Configuration
+const AWS_ACCESS_KEY = "AKIAUGLYLUJBDKEQ7VTW"
+const AWS_SECRET_KEY = "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"
+const AWS_REGION = "us-east-1"
+
 export default buildConfig({
   admin: {
     user: 'users',
@@ -41,18 +46,18 @@ export default buildConfig({
       collections: {
         media: {
           prefix: 'media',
-          generateFileURL: ({ filename }) => `https://Media.s3.amazonaws.com/media/${filename}`,
+          generateFileURL: ({ filename }) => `https://rsfilesdata.s3.amazonaws.com/media/${filename}`,
         },
       },
-      bucket: 'Media',
+      bucket: 'rsfilesdata',
       config: {
         forcePathStyle: true,
         credentials: {
-          accessKeyId: 'e6b00e5933eafae276f1b808c04a1c52',
-          secretAccessKey: '70a6822b021c5e9f862504fe8a1843dd548eac7a3a03fa948e1034321fda2e5c',
+          accessKeyId: AWS_ACCESS_KEY,
+          secretAccessKey: AWS_SECRET_KEY,
         },
-        region: 'us-west-1',
-        endpoint: 'https://nwquaemdrfuhafnugbgl.supabase.co/storage/v1/s3',
+        region: AWS_REGION,
+        endpoint: 'https://rsfilesdata.s3.amazonaws.com',
       },
     }),
   ],

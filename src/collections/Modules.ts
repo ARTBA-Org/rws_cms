@@ -32,6 +32,10 @@ const Modules: CollectionConfig = {
       relationTo: 'slides',
       hasMany: true,
     },
+    {
+      name: 'slidesColor',
+      type: 'text',
+    },
   ],
 }
 

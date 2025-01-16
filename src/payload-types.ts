@@ -147,6 +147,7 @@ export interface Module {
       }[]
     | null;
   slides?: (number | Slide)[] | null;
+  slidesColor?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -160,6 +161,7 @@ export interface Slide {
   content?: string | null;
   image?: (number | null) | Media;
   type?: ('regular' | 'video' | 'quiz' | 'reference' | 'resources') | null;
+  slide_image?: string | null;
   urls?:
     | {
         url?: string | null;
@@ -323,6 +325,7 @@ export interface ModulesSelect<T extends boolean = true> {
         id?: T;
       };
   slides?: T;
+  slidesColor?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -335,6 +338,7 @@ export interface SlidesSelect<T extends boolean = true> {
   content?: T;
   image?: T;
   type?: T;
+  slide_image?: T;
   urls?:
     | T
     | {

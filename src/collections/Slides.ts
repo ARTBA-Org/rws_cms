@@ -53,6 +53,11 @@ const Slides: CollectionConfig = {
       },
     },
     {
+      name: 'slide_image',
+      type: 'text',
+      required: false,
+    },
+    {
       name: 'urls',
       type: 'array',
       fields: [
