@@ -67,6 +67,11 @@ const Slides: CollectionConfig = {
         },
       ],
     },
+    {
+      name: 'slide_color_code',
+      type: 'text',
+      required: false,
+    },
   ],
 }
 
