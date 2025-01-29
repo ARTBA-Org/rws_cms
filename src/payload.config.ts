@@ -55,10 +55,10 @@ export default buildConfig({
       config: {
         forcePathStyle: true,
         credentials: {
-          accessKeyId: 'AKIAUGLYLUJBDKEQ7VTW',
-          secretAccessKey: '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',
+          accessKeyId: AWS_ACCESS_KEY,
+          secretAccessKey: AWS_SECRET_KEY,
         },
-        region: 'us-east-1',
+        region: AWS_REGION,
         endpoint: 'https://rsfilesdata.s3.amazonaws.com',
       },
     }),

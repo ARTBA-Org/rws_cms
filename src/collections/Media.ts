@@ -1,9 +1,13 @@
-import type { CollectionConfig } from 'payload';
+import type { CollectionConfig } from 'payload'
 
 const Media: CollectionConfig = {
   slug: 'media',
+  admin: {
+    hidden: true,
+  },
   upload: {
     staticDir: 'media',
+    mimeTypes: ['image/*', 'video/*'],
     imageSizes: [
       {
         name: 'thumbnail',
@@ -19,7 +23,6 @@ const Media: CollectionConfig = {
       },
     ],
     adminThumbnail: 'thumbnail',
-    mimeTypes: ['image/*', 'video/*'],
   },
   fields: [
     {
@@ -28,6 +31,6 @@ const Media: CollectionConfig = {
       required: false,
     },
   ],
-};
+}
 
-export default Media;
+export default Media

@@ -128,6 +128,13 @@ export interface Course {
   id: number;
   title: string;
   description: string;
+  thumbnail?: (number | null) | Media;
+  learningObjectives?:
+    | {
+        objective?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   modules?: (number | Module)[] | null;
   updatedAt: string;
   createdAt: string;
@@ -140,12 +147,7 @@ export interface Module {
   id: number;
   title: string;
   description?: string | null;
-  learningObjectives?:
-    | {
-        objective?: string | null;
-        id?: string | null;
-      }[]
-    | null;
+  thumbnail?: (number | null) | Media;
   slides?: (number | Slide)[] | null;
   slidesColor?: string | null;
   updatedAt: string;
@@ -168,6 +170,7 @@ export interface Slide {
         id?: string | null;
       }[]
     | null;
+  slide_color_code?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -307,6 +310,13 @@ export interface MediaSelect<T extends boolean = true> {
 export interface CoursesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
+  thumbnail?: T;
+  learningObjectives?:
+    | T
+    | {
+        objective?: T;
+        id?: T;
+      };
   modules?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -318,12 +328,7 @@ export interface CoursesSelect<T extends boolean = true> {
 export interface ModulesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
-  learningObjectives?:
-    | T
-    | {
-        objective?: T;
-        id?: T;
-      };
+  thumbnail?: T;
   slides?: T;
   slidesColor?: T;
   updatedAt?: T;
@@ -345,6 +350,7 @@ export interface SlidesSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  slide_color_code?: T;
   updatedAt?: T;
   createdAt?: T;
 }
