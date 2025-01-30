@@ -16,6 +16,7 @@ export interface Config {
     courses: Course;
     modules: Module;
     slides: Slide;
+    interactions: Interaction;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -27,6 +28,7 @@ export interface Config {
     courses: CoursesSelect<false> | CoursesSelect<true>;
     modules: ModulesSelect<false> | ModulesSelect<true>;
     slides: SlidesSelect<false> | SlidesSelect<true>;
+    interactions: InteractionsSelect<false> | InteractionsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -176,6 +178,19 @@ export interface Slide {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "interactions".
+ */
+export interface Interaction {
+  id: number;
+  name: string;
+  url: string;
+  thumbnail?: (number | null) | Media;
+  module: number | Module;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -200,6 +215,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'slides';
         value: number | Slide;
+      } | null)
+    | ({
+        relationTo: 'interactions';
+        value: number | Interaction;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -351,6 +370,18 @@ export interface SlidesSelect<T extends boolean = true> {
         id?: T;
       };
   slide_color_code?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "interactions_select".
+ */
+export interface InteractionsSelect<T extends boolean = true> {
+  name?: T;
+  url?: T;
+  thumbnail?: T;
+  module?: T;
   updatedAt?: T;
   createdAt?: T;
 }

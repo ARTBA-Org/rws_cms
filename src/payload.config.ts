@@ -13,6 +13,7 @@ import Media from './collections/Media'
 import Courses from './collections/Courses'
 import Modules from './collections/Modules'
 import Slides from './collections/Slides'
+import Interactions from './collections/Interactions'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -29,7 +30,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Courses, Modules, Slides],
+  collections: [Users, Media, Courses, Modules, Slides, Interactions],
   editor: lexicalEditor(),
   secret: 'your-strong-random-secret-here',
   typescript: {
