@@ -4,7 +4,6 @@ const Courses: CollectionConfig = {
   slug: 'courses',
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title', 'description', 'thumbnail'],
   },
   fields: [
     {
@@ -18,12 +17,6 @@ const Courses: CollectionConfig = {
       required: true,
     },
     {
-      name: 'thumbnail',
-      type: 'upload',
-      relationTo: 'media',
-      required: false,
-    },
-    {
       name: 'learningObjectives',
       type: 'array',
       fields: [
@@ -32,6 +25,11 @@ const Courses: CollectionConfig = {
           type: 'text',
         },
       ],
+    },
+    {
+      name: 'Course Thumbnail',
+      type: 'upload',
+      relationTo: 'media',
     },
 
     {

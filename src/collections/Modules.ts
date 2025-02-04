@@ -4,7 +4,7 @@ const Modules: CollectionConfig = {
   slug: 'modules',
   admin: {
     useAsTitle: 'title',
-    defaultColumns: ['title', 'description', 'thumbnail', 'slidesCount'],
+    defaultColumns: ['title', 'description', 'slidesCount'],
   },
   fields: [
     {
@@ -17,11 +17,11 @@ const Modules: CollectionConfig = {
       type: 'textarea',
     },
     {
-      name: 'thumbnail',
+      name: 'moduleThumbnail',
       type: 'upload',
       relationTo: 'media',
-      required: false,
     },
+
     {
       name: 'slides',
       type: 'relationship',

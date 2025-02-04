@@ -16,7 +16,6 @@ export interface Config {
     courses: Course;
     modules: Module;
     slides: Slide;
-    interactions: Interaction;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -28,7 +27,6 @@ export interface Config {
     courses: CoursesSelect<false> | CoursesSelect<true>;
     modules: ModulesSelect<false> | ModulesSelect<true>;
     slides: SlidesSelect<false> | SlidesSelect<true>;
-    interactions: InteractionsSelect<false> | InteractionsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -130,13 +128,13 @@ export interface Course {
   id: number;
   title: string;
   description: string;
-  thumbnail?: (number | null) | Media;
   learningObjectives?:
     | {
         objective?: string | null;
         id?: string | null;
       }[]
     | null;
+  'Course Thumbnail'?: (number | null) | Media;
   modules?: (number | Module)[] | null;
   updatedAt: string;
   createdAt: string;
@@ -149,7 +147,7 @@ export interface Module {
   id: number;
   title: string;
   description?: string | null;
-  thumbnail?: (number | null) | Media;
+  moduleThumbnail?: (number | null) | Media;
   slides?: (number | Slide)[] | null;
   slidesColor?: string | null;
   updatedAt: string;
@@ -173,19 +171,6 @@ export interface Slide {
       }[]
     | null;
   slide_color_code?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "interactions".
- */
-export interface Interaction {
-  id: number;
-  name: string;
-  url: string;
-  thumbnail?: (number | null) | Media;
-  module: number | Module;
   updatedAt: string;
   createdAt: string;
 }
@@ -215,10 +200,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'slides';
         value: number | Slide;
-      } | null)
-    | ({
-        relationTo: 'interactions';
-        value: number | Interaction;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -329,13 +310,13 @@ export interface MediaSelect<T extends boolean = true> {
 export interface CoursesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
-  thumbnail?: T;
   learningObjectives?:
     | T
     | {
         objective?: T;
         id?: T;
       };
+  'Course Thumbnail'?: T;
   modules?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -347,7 +328,7 @@ export interface CoursesSelect<T extends boolean = true> {
 export interface ModulesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
-  thumbnail?: T;
+  moduleThumbnail?: T;
   slides?: T;
   slidesColor?: T;
   updatedAt?: T;
@@ -370,18 +351,6 @@ export interface SlidesSelect<T extends boolean = true> {
         id?: T;
       };
   slide_color_code?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "interactions_select".
- */
-export interface InteractionsSelect<T extends boolean = true> {
-  name?: T;
-  url?: T;
-  thumbnail?: T;
-  module?: T;
   updatedAt?: T;
   createdAt?: T;
 }
