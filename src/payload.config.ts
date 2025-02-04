@@ -31,7 +31,7 @@ export default buildConfig({
   },
   collections: [Users, Media, Courses, Modules, Slides],
   editor: lexicalEditor(),
-  secret: 'your-strong-random-secret-here',
+  secret: '1234567890',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
