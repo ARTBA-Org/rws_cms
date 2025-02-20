@@ -136,6 +136,7 @@ export interface Course {
     | null;
   'Course Thumbnail'?: (number | null) | Media;
   modules?: (number | Module)[] | null;
+  search_vector?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -150,6 +151,7 @@ export interface Module {
   moduleThumbnail?: (number | null) | Media;
   slides?: (number | Slide)[] | null;
   slidesColor?: string | null;
+  search_vector?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -160,7 +162,7 @@ export interface Module {
 export interface Slide {
   id: number;
   title: string;
-  content?: string | null;
+  description?: string | null;
   image?: (number | null) | Media;
   type?: ('regular' | 'video' | 'quiz' | 'reference' | 'resources') | null;
   slide_image?: string | null;
@@ -171,6 +173,7 @@ export interface Slide {
       }[]
     | null;
   slide_color_code?: string | null;
+  search_vector?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -318,6 +321,7 @@ export interface CoursesSelect<T extends boolean = true> {
       };
   'Course Thumbnail'?: T;
   modules?: T;
+  search_vector?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -331,6 +335,7 @@ export interface ModulesSelect<T extends boolean = true> {
   moduleThumbnail?: T;
   slides?: T;
   slidesColor?: T;
+  search_vector?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -340,7 +345,7 @@ export interface ModulesSelect<T extends boolean = true> {
  */
 export interface SlidesSelect<T extends boolean = true> {
   title?: T;
-  content?: T;
+  description?: T;
   image?: T;
   type?: T;
   slide_image?: T;
@@ -351,6 +356,7 @@ export interface SlidesSelect<T extends boolean = true> {
         id?: T;
       };
   slide_color_code?: T;
+  search_vector?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -32,6 +32,23 @@ const Modules: CollectionConfig = {
       name: 'slidesColor',
       type: 'text',
     },
+    {
+      name: 'search_vector',
+      type: 'text',
+      access: {
+        read: () => false,
+      },
+      hooks: {
+        beforeChange: [
+          ({ data }) => {
+            if (data?.title || data?.description) {
+              return `${data.title} ${data.description}`
+            }
+            return null
+          },
+        ],
+      },
+    },
   ],
 }
 

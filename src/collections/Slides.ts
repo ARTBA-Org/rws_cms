@@ -12,7 +12,7 @@ const Slides: CollectionConfig = {
       required: true,
     },
     {
-      name: 'content',
+      name: 'description',
       type: 'textarea',
     },
     {
@@ -71,6 +71,22 @@ const Slides: CollectionConfig = {
       name: 'slide_color_code',
       type: 'text',
       required: false,
+    },
+    {
+      name: 'search_vector',
+      type: 'text',
+      access: {
+        read: () => false,
+      },
+      hooks: {
+        beforeChange: [
+          ({ data }) => {
+            const title = data?.title || ''
+            const description = data?.description || ''
+            return `${title} ${description}`
+          },
+        ],
+      },
     },
   ],
 }
