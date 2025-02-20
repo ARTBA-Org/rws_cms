@@ -53,11 +53,6 @@ const Slides: CollectionConfig = {
       },
     },
     {
-      name: 'slide_image',
-      type: 'text',
-      required: false,
-    },
-    {
       name: 'urls',
       type: 'array',
       fields: [
@@ -66,11 +61,6 @@ const Slides: CollectionConfig = {
           type: 'text',
         },
       ],
-    },
-    {
-      name: 'slide_color_code',
-      type: 'text',
-      required: false,
     },
     {
       name: 'search_vector',

@@ -75,7 +75,10 @@ export default buildConfig({
   db: postgresAdapter({
     pool: {
       connectionString:
-        'postgresql://postgres.nwquaemdrfuhafnugbgl:oUjZXbDAM2VqDgiZ@aws-0-us-west-1.pooler.supabase.com:6543/postgres',
+        'postgresql://postgres.nwquaemdrfuhafnugbgl:UHB6tySaRY06Lr8g@aws-0-us-west-1.pooler.supabase.com:6543/postgres',
+      ssl: {
+        rejectUnauthorized: false,
+      },
     },
   }),
   sharp,
@@ -83,28 +86,28 @@ export default buildConfig({
     s3Storage({
       collections: {
         media: {
-          prefix: 'media',
+          prefix: '',
           generateFileURL: ({ filename, size }) => {
             // Handle both original and resized image variants
             const encodedFilename = encodeURIComponent(filename)
             if (size) {
               const baseName = encodedFilename.replace(/\.[^/.]+$/, '')
               const ext = encodedFilename.split('.').pop()
-              return `https://rsfilesdata.s3.amazonaws.com/media/${baseName}-${size.width}x${size.height}.${ext}`
+              return `https://rsfilesdata.s3.amazonaws.com/${baseName}-${size.width}x${size.height}.${ext}`
             }
-            return `https://rsfilesdata.s3.amazonaws.com/media/${encodedFilename}`
+            return `https://rsfilesdata.s3.amazonaws.com/${encodedFilename}`
           },
         },
       },
       bucket: 'rsfilesdata',
       config: {
-        forcePathStyle: true,
+        forcePathStyle: false,
         credentials: {
           accessKeyId: AWS_ACCESS_KEY,
           secretAccessKey: AWS_SECRET_KEY,
         },
         region: AWS_REGION,
-        endpoint: 'https://rsfilesdata.s3.amazonaws.com',
+        endpoint: undefined,
       },
     }),
     AlgoliaSearchPlugin({

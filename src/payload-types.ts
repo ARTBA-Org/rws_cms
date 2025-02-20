@@ -165,14 +165,12 @@ export interface Slide {
   description?: string | null;
   image?: (number | null) | Media;
   type?: ('regular' | 'video' | 'quiz' | 'reference' | 'resources') | null;
-  slide_image?: string | null;
   urls?:
     | {
         url?: string | null;
         id?: string | null;
       }[]
     | null;
-  slide_color_code?: string | null;
   search_vector?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -348,14 +346,12 @@ export interface SlidesSelect<T extends boolean = true> {
   description?: T;
   image?: T;
   type?: T;
-  slide_image?: T;
   urls?:
     | T
     | {
         url?: T;
         id?: T;
       };
-  slide_color_code?: T;
   search_vector?: T;
   updatedAt?: T;
   createdAt?: T;
