@@ -55,9 +55,15 @@ const generateSearchAttributes = (args: any) => {
 }
 
 // S3 Configuration
-const AWS_ACCESS_KEY = 'AKIAUGLYLUJBDKEQ7VTW'
-const AWS_SECRET_KEY = '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'
-const AWS_REGION = 'us-east-1'
+const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY as string
+const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY as string
+const AWS_REGION = process.env.AWS_REGION || 'us-east-1'
+
+if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY) {
+  throw new Error(
+    'AWS credentials are required. Please set AWS_ACCESS_KEY and AWS_SECRET_KEY environment variables.',
+  )
+}
 
 export default buildConfig({
   admin: {
@@ -86,28 +92,18 @@ export default buildConfig({
     s3Storage({
       collections: {
         media: {
-          prefix: '',
-          generateFileURL: ({ filename, size }) => {
-            // Handle both original and resized image variants
-            const encodedFilename = encodeURIComponent(filename)
-            if (size) {
-              const baseName = encodedFilename.replace(/\.[^/.]+$/, '')
-              const ext = encodedFilename.split('.').pop()
-              return `https://rsfilesdata.s3.amazonaws.com/${baseName}-${size.width}x${size.height}.${ext}`
-            }
-            return `https://rsfilesdata.s3.amazonaws.com/${encodedFilename}`
-          },
+          prefix: 'media',
         },
       },
-      bucket: 'rsfilesdata',
+      bucket: 'Media',
       config: {
-        forcePathStyle: false,
+        forcePathStyle: true,
         credentials: {
-          accessKeyId: AWS_ACCESS_KEY,
-          secretAccessKey: AWS_SECRET_KEY,
+          accessKeyId: 'c258920f1af99511a2d32bb082e999d2',
+          secretAccessKey: '726cf05f11d1f8200901c9b5ecb4c6b382332a85463d3c2f09405f16e2cdb540',
         },
-        region: AWS_REGION,
-        endpoint: undefined,
+        region: 'us-west-1',
+        endpoint: 'https://nwquaemdrfuhafnugbgl.supabase.co/storage/v1/s3',
       },
     }),
     AlgoliaSearchPlugin({
