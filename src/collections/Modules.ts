@@ -6,6 +6,28 @@ const Modules: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'description', 'slidesCount'],
   },
+  hooks: {
+    beforeChange: [
+      async ({ req, data, operation }) => {
+        // Validate slides existence before updating relationships
+        if (data.slides && Array.isArray(data.slides)) {
+          const slideIds = data.slides.map((id) => (typeof id === 'object' ? id.id : id))
+          const validSlides = await req.payload.find({
+            collection: 'slides',
+            where: {
+              id: {
+                in: slideIds,
+              },
+            },
+          })
+
+          // Only include slides that exist
+          data.slides = validSlides.docs.map((slide) => slide.id)
+        }
+        return data
+      },
+    ],
+  },
   fields: [
     {
       name: 'title',
@@ -21,7 +43,6 @@ const Modules: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
     },
-
     {
       name: 'slides',
       type: 'relationship',

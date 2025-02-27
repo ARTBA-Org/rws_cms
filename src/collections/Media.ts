@@ -29,6 +29,8 @@ const Media: CollectionConfig = {
       name: 'alt',
       type: 'text',
       required: false,
+      label: 'Alt Text',
+      defaultValue: '',
     },
   ],
 }

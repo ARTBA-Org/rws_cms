@@ -27,7 +27,7 @@ const Courses: CollectionConfig = {
       ],
     },
     {
-      name: 'Course Thumbnail',
+      name: 'Thumbnail',
       type: 'upload',
       relationTo: 'media',
     },

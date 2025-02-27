@@ -134,7 +134,7 @@ export interface Course {
         id?: string | null;
       }[]
     | null;
-  'Course Thumbnail'?: (number | null) | Media;
+  Thumbnail?: (number | null) | Media;
   modules?: (number | Module)[] | null;
   search_vector?: string | null;
   updatedAt: string;
@@ -317,7 +317,7 @@ export interface CoursesSelect<T extends boolean = true> {
         objective?: T;
         id?: T;
       };
-  'Course Thumbnail'?: T;
+  Thumbnail?: T;
   modules?: T;
   search_vector?: T;
   updatedAt?: T;
