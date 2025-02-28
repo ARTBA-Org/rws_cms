@@ -55,14 +55,34 @@ const generateSearchAttributes = (args: any) => {
 }
 
 // S3 Configuration
-const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY as string
-const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY as string
-const AWS_REGION = process.env.AWS_REGION || 'us-east-1'
+const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY as string | undefined
+const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY as string | undefined
+const AWS_REGION = process.env.AWS_REGION || 'us-west-1'
+const AWS_ENDPOINT = process.env.AWS_ENDPOINT as string | undefined
+
+// Algolia Configuration
+const ALGOLIA_APP_ID = process.env.ALGOLIA_APP_ID
+const ALGOLIA_ADMIN_API_KEY = process.env.ALGOLIA_ADMIN_API_KEY
+const ALGOLIA_INDEX = process.env.ALGOLIA_INDEX || 'rs_cms'
+
+// Database Configuration
+const DATABASE_URI = process.env.DATABASE_URI
+const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || '1234567890'
 
 if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY) {
-  throw new Error(
-    'AWS credentials are required. Please set AWS_ACCESS_KEY and AWS_SECRET_KEY environment variables.',
+  console.warn(
+    'AWS credentials are missing. Please set AWS_ACCESS_KEY and AWS_SECRET_KEY environment variables.',
   )
+}
+
+if (!ALGOLIA_APP_ID || !ALGOLIA_ADMIN_API_KEY) {
+  console.warn(
+    'Algolia credentials are missing. Please set ALGOLIA_APP_ID and ALGOLIA_ADMIN_API_KEY environment variables.',
+  )
+}
+
+if (!DATABASE_URI) {
+  console.warn('Database URI is missing. Please set DATABASE_URI environment variable.')
 }
 
 export default buildConfig({
@@ -74,14 +94,13 @@ export default buildConfig({
   },
   collections: [Users, Media, Courses, Modules, Slides],
   editor: lexicalEditor(),
-  secret: '1234567890',
+  secret: PAYLOAD_SECRET,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: postgresAdapter({
     pool: {
-      connectionString:
-        'postgresql://postgres.nwquaemdrfuhafnugbgl:UHB6tySaRY06Lr8g@aws-0-us-west-1.pooler.supabase.com:6543/postgres',
+      connectionString: DATABASE_URI,
       ssl: {
         rejectUnauthorized: false,
       },
@@ -104,22 +123,24 @@ export default buildConfig({
       config: {
         forcePathStyle: true,
         credentials: {
-          accessKeyId: 'c258920f1af99511a2d32bb082e999d2',
-          secretAccessKey: '726cf05f11d1f8200901c9b5ecb4c6b382332a85463d3c2f09405f16e2cdb540',
+          accessKeyId: AWS_ACCESS_KEY || '',
+          secretAccessKey: AWS_SECRET_KEY || '',
         },
-        region: 'us-west-1',
-        endpoint: 'https://nwquaemdrfuhafnugbgl.supabase.co/storage/v1/s3',
+        region: AWS_REGION,
+        endpoint: AWS_ENDPOINT || '',
       },
     }),
-    AlgoliaSearchPlugin({
-      algolia: {
-        appId: 'HTODLVG92P',
-        apiKey: '8136653daed7fabb9332f53ec87481a4',
-        index: 'rs_cms',
-      },
-      collections: ['courses', 'modules', 'slides'],
-      waitForHook: true,
-      generateSearchAttributes,
-    }),
-  ],
+    ALGOLIA_APP_ID && ALGOLIA_ADMIN_API_KEY
+      ? AlgoliaSearchPlugin({
+          algolia: {
+            appId: ALGOLIA_APP_ID,
+            apiKey: ALGOLIA_ADMIN_API_KEY,
+            index: ALGOLIA_INDEX,
+          },
+          collections: ['courses', 'modules', 'slides'],
+          waitForHook: true,
+          generateSearchAttributes,
+        })
+      : null,
+  ].filter(Boolean),
 })

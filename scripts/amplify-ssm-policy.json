@@ -1,0 +1,10 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"],
+      "Resource": ["arn:aws:ssm:*:*:parameter/amplify/${AppId}/${BranchName}/*"]
+    }
+  ]
+}
