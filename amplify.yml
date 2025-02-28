@@ -9,6 +9,7 @@ frontend:
     preBuild:
       commands:
         - nvm use 20
+        - npm install -g pnpm
         - npm install --ignore-engines
     build:
       commands:
