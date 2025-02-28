@@ -6,6 +6,10 @@ const nextConfig = {
   experimental: {
     swcPlugins: [],
   },
+  // Disable image optimization to avoid Sharp-related issues
+  images: {
+    unoptimized: true,
+  },
   // Disable telemetry
   distDir: process.env.NODE_ENV === 'production' ? '.next' : '.next',
 }
