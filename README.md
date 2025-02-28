@@ -2,6 +2,13 @@
 
 A content management system built with Payload CMS and Next.js.
 
+## Requirements
+
+- Node.js version 18.18.2 or higher (20.9.0+ recommended)
+- PostgreSQL database with SSL support
+- AWS S3 compatible storage (optional)
+- Algolia search (optional)
+
 ## AWS Amplify Deployment
 
 ### Environment Variables Setup
@@ -70,6 +77,20 @@ npm run setup
 npm run test:db
 ```
 
+#### Update Package Lock File
+
+```bash
+# Update package-lock.json to ensure it's in sync with package.json
+npm run update:lock
+```
+
+#### AWS Amplify Setup
+
+```bash
+# Set up AWS Amplify with the correct configuration
+npm run setup:amplify
+```
+
 #### AWS Amplify Environment Variables
 
 ```bash
@@ -101,6 +122,17 @@ Use the provided IAM policy template to grant your Amplify app access to SSM par
 4. Name the policy (e.g., `AmplifySSMAccess-<app-name>`) and create it
 5. Attach this policy to the IAM role used by your Amplify app
 
+### Troubleshooting AWS Amplify Deployment
+
+If you encounter issues with AWS Amplify deployment:
+
+1. **Package Lock Synchronization Issues**: Run `npm run update:lock` locally, commit the changes, and push to your repository.
+2. **Node.js Version Issues**: The project is configured to use Node.js 20.9.0 in AWS Amplify. If you need to use a different version, update the `amplify.yml` file.
+3. **Build Failures**: Check the build logs for specific errors. Common issues include:
+   - Missing environment variables
+   - Package dependency conflicts
+   - Node.js version compatibility issues
+
 ## Local Development
 
 1. Clone the repository
@@ -121,6 +153,25 @@ npm run build
 ```
 npm start
 ```
+
+## Troubleshooting
+
+### Node.js Version Compatibility
+
+This project is designed to work with Node.js versions 18.18.2 or higher. If you encounter any engine compatibility warnings during installation, you can:
+
+1. Use the recommended Node.js version (20.9.0+)
+2. Add `--ignore-engines` flag to your npm install command
+3. Set `engine-strict=false` in your `.npmrc` file
+
+### Database Connection Issues
+
+If you're having trouble connecting to your PostgreSQL database:
+
+1. Verify that your database credentials are correct
+2. Ensure that the database server allows connections from your IP address
+3. Check that SSL is properly configured with `sslmode=no-verify`
+4. Run the database connection test with `npm run test:db`
 
 ## Attributes
 

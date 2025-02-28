@@ -14,7 +14,9 @@
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "setup": "./scripts/setup-env.sh",
-    "test:db": "node scripts/test-db-connection.js"
+    "test:db": "node scripts/test-db-connection.js",
+    "setup:amplify": "./scripts/setup-amplify.sh",
+    "update:lock": "./scripts/update-lock-file.sh"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.9.0",
@@ -47,5 +49,12 @@
   },
   "engines": {
     "node": ">=18.18.2 || >=20.9.0"
+  },
+  "overrides": {
+    "payload-plugin-algolia": {
+      "engines": {
+        "node": ">=18.18.2 || >=20.9.0"
+      }
+    }
   }
 }

@@ -9,7 +9,7 @@ frontend:
     preBuild:
       commands:
         - nvm use 20
-        - npm ci
+        - npm install --ignore-engines
     build:
       commands:
         - npm run build
