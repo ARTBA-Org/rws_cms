@@ -12,7 +12,7 @@ To properly deploy this application on AWS Amplify, you need to set up the follo
 2. Add the following environment variables:
 
 ```
-DATABASE_URI=postgresql://username:password@host:port/database?sslmode=require
+DATABASE_URI=postgresql://username:password@host:port/database?sslmode=no-verify
 PAYLOAD_SECRET=your-secure-secret-key
 
 # PostgreSQL Connection Details
@@ -21,7 +21,7 @@ PGPORT=5432
 PGDATABASE=your-database-name
 PGUSER=your-postgres-username
 PGPASSWORD=your-postgres-password
-PGSSLMODE=require
+PGSSLMODE=no-verify
 
 # PostgreSQL SSL Configuration
 # Set to 'true' to enable SSL, 'false' to disable
@@ -45,17 +45,30 @@ ALGOLIA_INDEX=rs_cms
 
 ### SSL Configuration for PostgreSQL
 
-If you're using a PostgreSQL database with SSL enabled (especially with self-signed certificates), you need to configure the SSL settings:
+When connecting to PostgreSQL with SSL (especially with self-signed certificates), use the following settings:
 
-1. Set `PG_SSL_ENABLED=true` to enable SSL (default)
-2. Set `PG_SSL_REJECT_UNAUTHORIZED=false` to accept self-signed certificates
-3. Optionally, provide a CA certificate file path with `PG_SSL_CA_FILE` if needed
+1. Set `sslmode=no-verify` in your DATABASE_URI connection string
+2. Set `PGSSLMODE=no-verify` in your environment variables
 
-These settings help resolve SSL certificate validation issues when connecting to PostgreSQL.
+This configuration tells PostgreSQL to use SSL but not to verify the certificate, which resolves issues with self-signed certificates.
 
 ### Automated Setup Scripts
 
 This repository includes scripts to help you set up environment variables:
+
+#### Local Environment Setup
+
+```bash
+# Interactive setup script for local development
+npm run setup
+```
+
+#### Test Database Connection
+
+```bash
+# Test your PostgreSQL connection
+npm run test:db
+```
 
 #### AWS Amplify Environment Variables
 
@@ -91,9 +104,11 @@ Use the provided IAM policy template to grant your Amplify app access to SSM par
 ## Local Development
 
 1. Clone the repository
-2. Copy `.env.example` to `.env` and fill in the required values
+2. Run `npm run setup` to set up your environment variables interactively
+   - Or copy `.env.example` to `.env` and fill in the required values manually
 3. Run `npm install` to install dependencies
-4. Run `npm run dev` to start the development server
+4. Run `npm run test:db` to verify your database connection
+5. Run `npm run dev` to start the development server
 
 ## Build
 

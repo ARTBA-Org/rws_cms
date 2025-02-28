@@ -1,75 +1,73 @@
 #!/bin/bash
 
-# This script helps set up AWS SSM parameters for your Amplify app
-# Usage: ./setup-ssm-params.sh <app-id> <branch-name>
+# Script to set up AWS Systems Manager Parameter Store parameters for an Amplify app
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <app-id> <branch-name>"
-    echo "Example: $0 d335csi5l6xsl9 main"
+set -e
+
+# Check if AWS CLI is installed
+if ! command -v aws &> /dev/null; then
+    echo "AWS CLI is not installed. Please install it first."
     exit 1
 fi
 
-APP_ID=$1
-BRANCH_NAME=$2
-BASE_PATH="/amplify/$APP_ID/$BRANCH_NAME"
-
-# Load environment variables from .env file
-if [ -f .env ]; then
-    echo "Loading environment variables from .env file..."
-    source .env
-else
-    echo "Error: .env file not found. Please create it first."
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+    echo "jq is not installed. Please install it first."
     exit 1
 fi
 
-# Function to create or update SSM parameter
+# Function to create a parameter
 create_param() {
     local name=$1
     local value=$2
     local type=$3
+    local path="/amplify/${APP_ID}/${BRANCH_NAME}/${name}"
     
-    if [ -z "$value" ]; then
-        echo "Warning: Value for $name is empty. Skipping..."
-        return
-    fi
-    
-    echo "Creating/updating parameter: $BASE_PATH/$name"
+    echo "Creating parameter: $path"
     aws ssm put-parameter \
-        --name "$BASE_PATH/$name" \
+        --name "$path" \
         --value "$value" \
         --type "$type" \
         --overwrite
 }
 
-# Create parameters
-create_param "DATABASE_URI" "$DATABASE_URI" "SecureString"
-create_param "PAYLOAD_SECRET" "$PAYLOAD_SECRET" "SecureString"
+# Get command line arguments
+APP_ID=$1
+BRANCH_NAME=$2
 
-# PostgreSQL Connection Details
-create_param "PGHOST" "$PGHOST" "String"
-create_param "PGPORT" "$PGPORT" "String"
-create_param "PGDATABASE" "$PGDATABASE" "String"
-create_param "PGUSER" "$PGUSER" "String"
-create_param "PGPASSWORD" "$PGPASSWORD" "SecureString"
-create_param "PGSSLMODE" "$PGSSLMODE" "String"
-
-# PostgreSQL SSL Configuration
-create_param "PG_SSL_ENABLED" "${PG_SSL_ENABLED:-true}" "String"
-create_param "PG_SSL_REJECT_UNAUTHORIZED" "${PG_SSL_REJECT_UNAUTHORIZED:-false}" "String"
-if [ -n "$PG_SSL_CA_FILE" ]; then
-    create_param "PG_SSL_CA_FILE" "$PG_SSL_CA_FILE" "String"
+if [ -z "$APP_ID" ] || [ -z "$BRANCH_NAME" ]; then
+    echo "Usage: $0 <app-id> <branch-name>"
+    exit 1
 fi
 
-# Algolia Search Configuration
-create_param "ALGOLIA_APP_ID" "$ALGOLIA_APP_ID" "String"
-create_param "ALGOLIA_ADMIN_API_KEY" "$ALGOLIA_ADMIN_API_KEY" "SecureString"
-create_param "ALGOLIA_INDEX" "$ALGOLIA_INDEX" "String"
+# Load environment variables from .env file if it exists
+if [ -f .env ]; then
+    echo "Loading environment variables from .env file"
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# Create parameters
+create_param "DATABASE_URI" "${DATABASE_URI}" "SecureString"
+create_param "PAYLOAD_SECRET" "${PAYLOAD_SECRET}" "SecureString"
+
+# PostgreSQL Connection Details
+create_param "PGHOST" "${PGHOST}" "String"
+create_param "PGPORT" "${PGPORT:-5432}" "String"
+create_param "PGDATABASE" "${PGDATABASE}" "String"
+create_param "PGUSER" "${PGUSER}" "String"
+create_param "PGPASSWORD" "${PGPASSWORD}" "SecureString"
+create_param "PGSSLMODE" "${PGSSLMODE:-no-verify}" "String"
 
 # AWS S3 Configuration
-create_param "AWS_ACCESS_KEY" "$AWS_ACCESS_KEY" "SecureString"
-create_param "AWS_SECRET_KEY" "$AWS_SECRET_KEY" "SecureString"
-create_param "AWS_REGION" "$AWS_REGION" "String"
-create_param "AWS_ENDPOINT" "$AWS_ENDPOINT" "String"
+create_param "AWS_ACCESS_KEY" "${AWS_ACCESS_KEY}" "SecureString"
+create_param "AWS_SECRET_KEY" "${AWS_SECRET_KEY}" "SecureString"
+create_param "AWS_REGION" "${AWS_REGION}" "String"
+create_param "AWS_ENDPOINT" "${AWS_ENDPOINT}" "String"
 
-echo "Done! Parameters created under $BASE_PATH/"
-echo "Make sure your Amplify app has permissions to access these parameters." 
+# Algolia Search Configuration
+create_param "ALGOLIA_APP_ID" "${ALGOLIA_APP_ID}" "String"
+create_param "ALGOLIA_ADMIN_API_KEY" "${ALGOLIA_ADMIN_API_KEY}" "SecureString"
+create_param "ALGOLIA_INDEX" "${ALGOLIA_INDEX:-rs_cms}" "String"
+
+echo "Parameters created successfully in path: /amplify/${APP_ID}/${BRANCH_NAME}/"
+echo "Make sure to grant your Amplify app access to these parameters." 

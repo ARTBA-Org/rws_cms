@@ -7,34 +7,10 @@
 
 // Default SSL configuration for PostgreSQL
 export const getSSLConfig = () => {
-  // Check if SSL is enabled (default to true)
-  const sslEnabled = process.env.PG_SSL_ENABLED !== 'false'
-
-  // If SSL is disabled, return false
-  if (!sslEnabled) {
-    return false
+  // Always disable SSL certificate validation for self-signed certificates
+  return {
+    rejectUnauthorized: false,
   }
-
-  // Get SSL reject unauthorized setting (default to false to accept self-signed certs)
-  const rejectUnauthorized = process.env.PG_SSL_REJECT_UNAUTHORIZED === 'true'
-
-  // Basic configuration
-  const sslConfig: any = {
-    rejectUnauthorized,
-  }
-
-  // Add CA file if provided
-  if (process.env.PG_SSL_CA_FILE) {
-    try {
-      const fs = require('fs')
-      sslConfig.ca = fs.readFileSync(process.env.PG_SSL_CA_FILE).toString()
-    } catch (error) {
-      console.warn(`Warning: Could not read SSL CA file: ${process.env.PG_SSL_CA_FILE}`)
-    }
-  }
-
-  // Return the SSL configuration
-  return sslConfig
 }
 
 // Export a function to get the full database connection options
@@ -43,11 +19,32 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
     throw new Error('Database connection string is required')
   }
 
+  console.log('Setting up database connection with SSL configuration')
+
+  // Modify the connection string to use sslmode=no-verify
+  let modifiedConnectionString = connectionString
+  if (modifiedConnectionString.includes('?')) {
+    // Add sslmode=no-verify if it doesn't already have it
+    if (!modifiedConnectionString.includes('sslmode=no-verify')) {
+      modifiedConnectionString = modifiedConnectionString.replace(
+        'sslmode=require',
+        'sslmode=no-verify',
+      )
+    }
+  } else {
+    // Add sslmode=no-verify as a new query parameter
+    modifiedConnectionString += '?sslmode=no-verify'
+  }
+
+  // Log the connection string (with password masked)
+  const maskedConnectionString = modifiedConnectionString.replace(/:[^:@]*@/, ':***@')
+  console.log('Database connection string:', maskedConnectionString)
+
   // Get SSL configuration
   const ssl = getSSLConfig()
 
   return {
-    connectionString,
+    connectionString: modifiedConnectionString,
     ssl,
     max: 20, // Maximum number of clients in the pool
     min: 5, // Minimum number of idle clients maintained in the pool
