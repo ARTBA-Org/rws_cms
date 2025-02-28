@@ -68,6 +68,13 @@ add_env_var "PGUSER" "$PGUSER"
 add_env_var "PGPASSWORD" "$PGPASSWORD"
 add_env_var "PGSSLMODE" "$PGSSLMODE"
 
+# PostgreSQL SSL Configuration
+add_env_var "PG_SSL_ENABLED" "${PG_SSL_ENABLED:-true}"
+add_env_var "PG_SSL_REJECT_UNAUTHORIZED" "${PG_SSL_REJECT_UNAUTHORIZED:-false}"
+if [ -n "$PG_SSL_CA_FILE" ]; then
+    add_env_var "PG_SSL_CA_FILE" "$PG_SSL_CA_FILE"
+fi
+
 # Algolia Search Configuration
 add_env_var "ALGOLIA_APP_ID" "$ALGOLIA_APP_ID"
 add_env_var "ALGOLIA_ADMIN_API_KEY" "$ALGOLIA_ADMIN_API_KEY"

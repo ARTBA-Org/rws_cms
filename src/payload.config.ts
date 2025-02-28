@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
+import { getDBConnectionOptions } from './utils/ssl-config'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -99,17 +100,7 @@ export default buildConfig({
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
   db: postgresAdapter({
-    pool: {
-      connectionString: DATABASE_URI,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-      max: 20, // Maximum number of clients in the pool
-      min: 5, // Minimum number of idle clients maintained in the pool
-      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-      connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
-      statement_timeout: 60000, // Statement timeout in milliseconds (60 seconds)
-    },
+    pool: getDBConnectionOptions(DATABASE_URI),
   }),
   sharp,
   plugins: [

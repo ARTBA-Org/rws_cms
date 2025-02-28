@@ -15,6 +15,22 @@ To properly deploy this application on AWS Amplify, you need to set up the follo
 DATABASE_URI=postgresql://username:password@host:port/database?sslmode=require
 PAYLOAD_SECRET=your-secure-secret-key
 
+# PostgreSQL Connection Details
+PGHOST=your-postgres-host
+PGPORT=5432
+PGDATABASE=your-database-name
+PGUSER=your-postgres-username
+PGPASSWORD=your-postgres-password
+PGSSLMODE=require
+
+# PostgreSQL SSL Configuration
+# Set to 'true' to enable SSL, 'false' to disable
+PG_SSL_ENABLED=true
+# Set to 'false' to accept self-signed certificates
+PG_SSL_REJECT_UNAUTHORIZED=false
+# Optional: Path to CA certificate file if needed
+# PG_SSL_CA_FILE=/path/to/ca-certificate.crt
+
 # AWS S3 Configuration
 AWS_ACCESS_KEY=your-aws-access-key
 AWS_SECRET_KEY=your-aws-secret-key
@@ -26,6 +42,16 @@ ALGOLIA_APP_ID=your-algolia-app-id
 ALGOLIA_ADMIN_API_KEY=your-algolia-admin-api-key
 ALGOLIA_INDEX=rs_cms
 ```
+
+### SSL Configuration for PostgreSQL
+
+If you're using a PostgreSQL database with SSL enabled (especially with self-signed certificates), you need to configure the SSL settings:
+
+1. Set `PG_SSL_ENABLED=true` to enable SSL (default)
+2. Set `PG_SSL_REJECT_UNAUTHORIZED=false` to accept self-signed certificates
+3. Optionally, provide a CA certificate file path with `PG_SSL_CA_FILE` if needed
+
+These settings help resolve SSL certificate validation issues when connecting to PostgreSQL.
 
 ### Automated Setup Scripts
 

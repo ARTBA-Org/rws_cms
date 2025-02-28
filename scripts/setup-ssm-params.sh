@@ -53,6 +53,13 @@ create_param "PGUSER" "$PGUSER" "String"
 create_param "PGPASSWORD" "$PGPASSWORD" "SecureString"
 create_param "PGSSLMODE" "$PGSSLMODE" "String"
 
+# PostgreSQL SSL Configuration
+create_param "PG_SSL_ENABLED" "${PG_SSL_ENABLED:-true}" "String"
+create_param "PG_SSL_REJECT_UNAUTHORIZED" "${PG_SSL_REJECT_UNAUTHORIZED:-false}" "String"
+if [ -n "$PG_SSL_CA_FILE" ]; then
+    create_param "PG_SSL_CA_FILE" "$PG_SSL_CA_FILE" "String"
+fi
+
 # Algolia Search Configuration
 create_param "ALGOLIA_APP_ID" "$ALGOLIA_APP_ID" "String"
 create_param "ALGOLIA_ADMIN_API_KEY" "$ALGOLIA_ADMIN_API_KEY" "SecureString"
