@@ -10,7 +10,7 @@ frontend:
       commands:
         - nvm use 20
         - npm install -g pnpm
-        - npm install --platform=linux --arch=x64 sharp
+        - npm install --platform=linux --arch=x64 --ignore-scripts sharp
     build:
       commands:
         - npm run build

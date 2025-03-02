@@ -17,7 +17,8 @@
     "test:db": "node scripts/test-db-connection.js",
     "setup:amplify": "./scripts/setup-amplify.sh",
     "update:lock": "./scripts/update-lock-file.sh",
-    "prebuild": "npm install --platform=linux --arch=x64 sharp"
+    "prebuild": "npm install --platform=linux --arch=x64 sharp",
+    "preinstall": "npm install --platform=linux --arch=x64 sharp"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.9.0",
