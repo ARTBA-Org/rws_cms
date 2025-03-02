@@ -4,6 +4,21 @@ frontend:
     preBuild:
       commands:
         - nvm use 20
+        - echo "Creating .env.production file with placeholder values for build"
+        - |
+          cat > .env.production << 'EOL'
+          DATABASE_URI=${DATABASE_URI}
+          PAYLOAD_SECRET=${PAYLOAD_SECRET}
+          PAYLOAD_PUBLIC_SERVER_URL=${PAYLOAD_PUBLIC_SERVER_URL}
+          PAYLOAD_PUBLIC_SITE_URL=${PAYLOAD_PUBLIC_SITE_URL}
+          ALGOLIA_APP_ID=${ALGOLIA_APP_ID}
+          ALGOLIA_ADMIN_API_KEY=${ALGOLIA_ADMIN_API_KEY}
+          ALGOLIA_SEARCH_API_KEY=${ALGOLIA_SEARCH_API_KEY}
+          AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+          AWS_SECRET_KEY=${AWS_SECRET_KEY}
+          AWS_REGION=${AWS_REGION}
+          AWS_BUCKET=${AWS_BUCKET}
+          EOL
         - npm install
     build:
       commands:
