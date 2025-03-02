@@ -56,10 +56,10 @@ const generateSearchAttributes = (args: any) => {
 }
 
 // S3 Configuration
-const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY as string | undefined
-const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY as string | undefined
-const AWS_REGION = process.env.AWS_REGION || 'us-west-1'
-const AWS_ENDPOINT = process.env.AWS_ENDPOINT as string | undefined
+const AWS_ACCESS_KEY = process.env.S3_ACCESS_KEY as string | undefined
+const AWS_SECRET_KEY = process.env.S3_SECRET_KEY as string | undefined
+const AWS_REGION = process.env.S3_REGION || 'us-west-1'
+const AWS_ENDPOINT = process.env.S3_ENDPOINT as string | undefined
 
 // Algolia Configuration
 const ALGOLIA_APP_ID = process.env.ALGOLIA_APP_ID
@@ -72,7 +72,7 @@ const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || '1234567890'
 
 if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY) {
   console.warn(
-    'AWS credentials are missing. Please set AWS_ACCESS_KEY and AWS_SECRET_KEY environment variables.',
+    'AWS credentials are missing. Please set S3_ACCESS_KEY and S3_SECRET_KEY environment variables.',
   )
 }
 
