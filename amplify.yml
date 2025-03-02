@@ -10,7 +10,6 @@ frontend:
       commands:
         - nvm use 20
         - npm install -g pnpm
-        - npm install --ignore-engines
         - npm install --platform=linux --arch=x64 sharp
     build:
       commands:
@@ -36,4 +35,4 @@ frontend:
           value: 'SAMEORIGIN'
   environmentVariables:
     - name: NODE_ENV
-      value: production 
+      value: production

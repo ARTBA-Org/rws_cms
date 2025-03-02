@@ -16,7 +16,8 @@
     "setup": "./scripts/setup-env.sh",
     "test:db": "node scripts/test-db-connection.js",
     "setup:amplify": "./scripts/setup-amplify.sh",
-    "update:lock": "./scripts/update-lock-file.sh"
+    "update:lock": "./scripts/update-lock-file.sh",
+    "prebuild": "npm install --platform=linux --arch=x64 sharp"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.9.0",
@@ -35,7 +36,7 @@
     "pg": "^8.13.3",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "sharp": "0.32.6"
+    "sharp": "^0.32.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
