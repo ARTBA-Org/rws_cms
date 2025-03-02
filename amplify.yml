@@ -14,10 +14,10 @@ frontend:
           ALGOLIA_APP_ID=placeholder_app_id
           ALGOLIA_ADMIN_API_KEY=placeholder_admin_api_key
           ALGOLIA_SEARCH_API_KEY=placeholder_search_api_key
-          AWS_ACCESS_KEY=placeholder_aws_access_key
-          AWS_SECRET_KEY=placeholder_aws_secret_key
-          AWS_REGION=us-east-1
-          AWS_BUCKET=placeholder-bucket
+          S3_ACCESS_KEY=placeholder_aws_access_key
+          S3_SECRET_KEY=placeholder_aws_secret_key
+          S3_REGION=us-east-1
+          S3_BUCKET=placeholder-bucket
           EOL
         - npm install
     build:
