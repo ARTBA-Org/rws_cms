@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload';
+import type { CollectionConfig } from 'payload'
 
 const Courses: CollectionConfig = {
   slug: 'courses',
@@ -48,15 +48,15 @@ const Courses: CollectionConfig = {
       hooks: {
         beforeChange: [
           ({ data }) => {
-            if (data.title || data.description) {
-              return `${data.title} ${data.description}`;
+            if (data && (data.title || data.description)) {
+              return `${data.title || ''} ${data.description || ''}`
             }
-            return null;
+            return null
           },
         ],
       },
     },
   ],
-};
+}
 
-export default Courses;
+export default Courses
