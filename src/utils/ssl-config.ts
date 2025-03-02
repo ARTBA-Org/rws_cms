@@ -15,6 +15,16 @@ export const getSSLConfig = () => {
 
 // Export a function to get the full database connection options
 export const getDBConnectionOptions = (connectionString: string | undefined) => {
+  // Skip database connection during build if NEXT_BUILD_SKIP_DB is set
+  if (process.env.NEXT_BUILD_SKIP_DB === 'true' && process.env.NODE_ENV === 'production') {
+    console.log('⚠️ Skipping database connection during build')
+    // Return a minimal configuration that won't be used during build
+    return {
+      connectionString: 'postgresql://skip:skip@localhost:5432/skip',
+      ssl: { rejectUnauthorized: false },
+    }
+  }
+
   if (!connectionString) {
     throw new Error('Database connection string is required')
   }

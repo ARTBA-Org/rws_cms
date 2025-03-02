@@ -18,6 +18,8 @@ frontend:
           S3_SECRET_KEY=placeholder_aws_secret_key
           S3_REGION=us-east-1
           S3_BUCKET=placeholder-bucket
+          PAYLOAD_CONFIG_PATH=dist/payload.config.js
+          NEXT_BUILD_SKIP_DB=true
           EOL
         - npm install
     build:
