@@ -7,17 +7,17 @@ frontend:
         - echo "Creating .env.production file with placeholder values for build"
         - |
           cat > .env.production << 'EOL'
-          DATABASE_URI=${DATABASE_URI}
-          PAYLOAD_SECRET=${PAYLOAD_SECRET}
-          PAYLOAD_PUBLIC_SERVER_URL=${PAYLOAD_PUBLIC_SERVER_URL}
-          PAYLOAD_PUBLIC_SITE_URL=${PAYLOAD_PUBLIC_SITE_URL}
-          ALGOLIA_APP_ID=${ALGOLIA_APP_ID}
-          ALGOLIA_ADMIN_API_KEY=${ALGOLIA_ADMIN_API_KEY}
-          ALGOLIA_SEARCH_API_KEY=${ALGOLIA_SEARCH_API_KEY}
-          AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
-          AWS_SECRET_KEY=${AWS_SECRET_KEY}
-          AWS_REGION=${AWS_REGION}
-          AWS_BUCKET=${AWS_BUCKET}
+          DATABASE_URI=postgresql://placeholder:placeholder@localhost:5432/placeholder
+          PAYLOAD_SECRET=placeholder_secret_at_least_32_characters_long
+          PAYLOAD_PUBLIC_SERVER_URL=https://placeholder-url.com
+          PAYLOAD_PUBLIC_SITE_URL=https://placeholder-url.com
+          ALGOLIA_APP_ID=placeholder_app_id
+          ALGOLIA_ADMIN_API_KEY=placeholder_admin_api_key
+          ALGOLIA_SEARCH_API_KEY=placeholder_search_api_key
+          AWS_ACCESS_KEY=placeholder_aws_access_key
+          AWS_SECRET_KEY=placeholder_aws_secret_key
+          AWS_REGION=us-east-1
+          AWS_BUCKET=placeholder-bucket
           EOL
         - npm install
     build:
