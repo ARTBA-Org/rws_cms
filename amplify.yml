@@ -6,7 +6,7 @@ frontend:
         - nvm use 20
         - echo "Creating .env.production file with environment variables"
         - |
-          cat > .env.production << 'EOL'
+          cat > .env.production << EOL
           DATABASE_URI=${DATABASE_URI}
           PAYLOAD_SECRET=${PAYLOAD_SECRET}
           PAYLOAD_PUBLIC_SERVER_URL=https://${AWS_APP_ID}.amplifyapp.com
