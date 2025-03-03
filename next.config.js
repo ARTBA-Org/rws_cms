@@ -14,6 +14,9 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['sharp'],
   },
+  // Add React compatibility settings
+  reactStrictMode: false,
+  transpilePackages: ['payload', '@payloadcms/ui'],
 }
 
 export default nextConfig

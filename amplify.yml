@@ -25,12 +25,27 @@ frontend:
           PGDATABASE=${PGDATABASE}
           PGUSER=${PGUSER}
           PGPASSWORD=${PGPASSWORD}
-          PGSSLMODE=${PGSSLMODE}
+          PGSSLMODE=no-verify
           NEXT_BUILD_SKIP_DB=true
+          NODE_ENV=production
           EOL
+        - echo "Verifying environment variables"
+        - |
+          if [ -n "$DATABASE_URI" ]; then
+            echo "DATABASE_URI is set"
+          else
+            echo "WARNING: DATABASE_URI is not set"
+          fi
+          if [ -n "$PGHOST" ]; then
+            echo "PGHOST is set to $PGHOST"
+          else
+            echo "WARNING: PGHOST is not set"
+          fi
+        - echo "Installing dependencies"
         - npm install
     build:
       commands:
+        - echo "Starting build process with database connection skipped"
         - npm run build
   artifacts:
     baseDirectory: .next

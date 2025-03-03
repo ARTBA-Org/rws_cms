@@ -9,6 +9,7 @@ import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
 import { getDBConnectionOptions } from './utils/ssl-config'
+import { mockDBAdapter } from './utils/mock-db-adapter'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -55,21 +56,28 @@ const generateSearchAttributes = (args: any) => {
   return searchAttributes
 }
 
-// S3 Configuration - Hard coded values
+// S3 Configuration - Hardcoded values from .env
 const AWS_ACCESS_KEY = 'c258920f1af99511a2d32bb082e999d2'
 const AWS_SECRET_KEY = '726cf05f11d1f8200901c9b5ecb4c6b382332a85463d3c2f09405f16e2cdb540'
 const AWS_REGION = 'us-west-1'
 const AWS_ENDPOINT = 'https://nwquaemdrfuhafnugbgl.supabase.co/storage/v1/s3'
 
-// Algolia Configuration - Hard coded values
+// Algolia Configuration - Hardcoded values from .env
 const ALGOLIA_APP_ID = 'HTODLVG92P'
 const ALGOLIA_ADMIN_API_KEY = '8136653daed7fabb9332f53ec87481a4'
 const ALGOLIA_INDEX = 'rs_cms'
 
-// Database Configuration - Hard coded values
+// Database Configuration - Hardcoded values from .env
 const DATABASE_URI =
   'postgresql://postgres.nwquaemdrfuhafnugbgl:UHB6tySaRY06Lr8g@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=no-verify'
 const PAYLOAD_SECRET = '8tok6QrKzWdsBag4/MIvm4Pp1TF+d9xx8tok6QrKzWd'
+
+// Check if we should skip the database connection
+const SKIP_DB = process.env.NEXT_BUILD_SKIP_DB === 'true'
+
+if (SKIP_DB) {
+  console.log('⚠️ NEXT_BUILD_SKIP_DB is set to true, using mock database adapter')
+}
 
 export default buildConfig({
   admin: {
@@ -84,9 +92,12 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  db: postgresAdapter({
-    pool: getDBConnectionOptions(DATABASE_URI),
-  }),
+  // Use the mock adapter when NEXT_BUILD_SKIP_DB is true, otherwise use the postgres adapter
+  db: SKIP_DB
+    ? mockDBAdapter()
+    : postgresAdapter({
+        pool: getDBConnectionOptions(DATABASE_URI),
+      }),
   sharp,
   plugins: [
     s3Storage({
