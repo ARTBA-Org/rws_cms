@@ -5,9 +5,8 @@
  * attempts during the build process. It's used when NEXT_BUILD_SKIP_DB is set to true.
  */
 
-import type { TypeWithID } from 'payload/types'
-import type { PaginatedDocs } from 'payload/database'
-import type { DatabaseAdapter } from 'payload/database'
+import type { TypeWithID } from 'payload'
+import type { PaginatedDocs, DatabaseAdapter } from 'payload'
 
 // Create a mock adapter that implements the minimal interface required
 export const mockDBAdapter = (): DatabaseAdapter => {
