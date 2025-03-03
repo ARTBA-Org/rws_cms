@@ -9,6 +9,7 @@ import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
 import { getDBConnectionOptions } from './utils/ssl-config'
+import { mockDBAdapter } from './utils/mock-db-adapter'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -70,20 +71,27 @@ const ALGOLIA_INDEX = process.env.ALGOLIA_INDEX || 'rs_cms'
 const DATABASE_URI = process.env.DATABASE_URI
 const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || '1234567890'
 
-if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY) {
-  console.warn(
-    'AWS credentials are missing. Please set S3_ACCESS_KEY and S3_SECRET_KEY environment variables.',
-  )
-}
+// Check if we should skip the database connection
+const SKIP_DB = process.env.NEXT_BUILD_SKIP_DB === 'true'
 
-if (!ALGOLIA_APP_ID || !ALGOLIA_ADMIN_API_KEY) {
-  console.warn(
-    'Algolia credentials are missing. Please set ALGOLIA_APP_ID and ALGOLIA_ADMIN_API_KEY environment variables.',
-  )
-}
+if (SKIP_DB) {
+  console.log('⚠️ NEXT_BUILD_SKIP_DB is set to true, using mock database adapter')
+} else {
+  if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY) {
+    console.warn(
+      'AWS credentials are missing. Please set S3_ACCESS_KEY and S3_SECRET_KEY environment variables.',
+    )
+  }
 
-if (!DATABASE_URI) {
-  console.warn('Database URI is missing. Please set DATABASE_URI environment variable.')
+  if (!ALGOLIA_APP_ID || !ALGOLIA_ADMIN_API_KEY) {
+    console.warn(
+      'Algolia credentials are missing. Please set ALGOLIA_APP_ID and ALGOLIA_ADMIN_API_KEY environment variables.',
+    )
+  }
+
+  if (!DATABASE_URI) {
+    console.warn('Database URI is missing. Please set DATABASE_URI environment variable.')
+  }
 }
 
 export default buildConfig({
@@ -99,9 +107,12 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  db: postgresAdapter({
-    pool: getDBConnectionOptions(DATABASE_URI),
-  }),
+  // Use the mock adapter when NEXT_BUILD_SKIP_DB is true, otherwise use the postgres adapter
+  db: SKIP_DB
+    ? mockDBAdapter()
+    : postgresAdapter({
+        pool: getDBConnectionOptions(DATABASE_URI),
+      }),
   sharp,
   plugins: [
     s3Storage({
