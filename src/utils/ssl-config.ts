@@ -31,6 +31,42 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
 
   console.log('Setting up database connection with SSL configuration')
 
+  // For AWS Amplify runtime, use the environment variables directly
+  if (
+    process.env.PGHOST &&
+    process.env.PGUSER &&
+    process.env.PGPASSWORD &&
+    process.env.PGDATABASE
+  ) {
+    console.log(`Using PostgreSQL connection parameters from environment variables`)
+    const host = process.env.PGHOST
+    const port = process.env.PGPORT || '5432'
+    const database = process.env.PGDATABASE
+    const user = process.env.PGUSER
+    const password = process.env.PGPASSWORD
+    const sslmode = process.env.PGSSLMODE || 'no-verify'
+
+    // Construct a new connection string from environment variables
+    const constructedConnectionString = `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=${sslmode}`
+
+    // Log the connection string (with password masked)
+    const maskedConnectionString = constructedConnectionString.replace(/:[^:@]*@/, ':***@')
+    console.log('Database connection string (from env vars):', maskedConnectionString)
+
+    // Get SSL configuration
+    const ssl = getSSLConfig()
+
+    return {
+      connectionString: constructedConnectionString,
+      ssl,
+      max: 20, // Maximum number of clients in the pool
+      min: 5, // Minimum number of idle clients maintained in the pool
+      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+      connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+      statement_timeout: 60000, // Statement timeout in milliseconds (60 seconds)
+    }
+  }
+
   // Modify the connection string to use sslmode=no-verify
   let modifiedConnectionString = connectionString
   if (modifiedConnectionString.includes('?')) {
