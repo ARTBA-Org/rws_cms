@@ -103,8 +103,11 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
     console.log(
       `Connecting to database at ${url.hostname}:${url.port || '5432'}/${url.pathname.substring(1)}`,
     )
-  } catch (err) {
-    console.error('Failed to parse connection string:', err.message)
+  } catch (err: unknown) {
+    console.error(
+      'Failed to parse connection string:',
+      err instanceof Error ? err.message : String(err),
+    )
   }
 
   return {
