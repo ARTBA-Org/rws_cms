@@ -18,10 +18,20 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
   // Skip database connection during build if NEXT_BUILD_SKIP_DB is set
   if (process.env.NEXT_BUILD_SKIP_DB === 'true') {
     console.log('⚠️ Skipping database connection during build')
-    // Return a minimal configuration that won't be used during build
+    // Return hardcoded parameters that won't actually try to connect
     return {
-      connectionString: 'postgresql://skip:skip@skip:5432/skip',
-      ssl: { rejectUnauthorized: false },
+      // Don't use connectionString at all when skipping
+      host: 'localhost',
+      port: 5432,
+      database: 'postgres',
+      user: 'postgres',
+      password: 'postgres',
+      ssl: false,
+      // Set a very short connection timeout to fail fast
+      connectionTimeoutMillis: 1,
+      // Set to 0 to prevent connection pool from being created
+      max: 0,
+      min: 0,
     }
   }
 
@@ -63,10 +73,20 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
 
   if (!connectionString) {
     console.error('Database connection string is required and not provided')
-    // Return a minimal configuration that won't be used
+    // Return hardcoded parameters that won't actually try to connect
     return {
-      connectionString: 'postgresql://skip:skip@skip:5432/skip',
-      ssl: { rejectUnauthorized: false },
+      // Don't use connectionString at all when no connection string is provided
+      host: 'localhost',
+      port: 5432,
+      database: 'postgres',
+      user: 'postgres',
+      password: 'postgres',
+      ssl: false,
+      // Set a very short connection timeout to fail fast
+      connectionTimeoutMillis: 1,
+      // Set to 0 to prevent connection pool from being created
+      max: 0,
+      min: 0,
     }
   }
 

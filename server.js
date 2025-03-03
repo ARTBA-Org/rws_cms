@@ -7,6 +7,12 @@ const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
 const port = process.env.PORT || 3000
 
+// Force skip database during build in production
+if (process.env.NODE_ENV === 'production') {
+  process.env.NEXT_BUILD_SKIP_DB = 'true'
+  console.log('Forced NEXT_BUILD_SKIP_DB=true in production')
+}
+
 // Explicitly set PostgreSQL environment variables if DATABASE_URI is provided
 if (process.env.DATABASE_URI && !process.env.PGHOST) {
   try {
@@ -39,12 +45,6 @@ console.log('Environment:', {
   DATABASE_URI: process.env.DATABASE_URI ? '✓ Set' : '✗ Not set',
   NEXT_BUILD_SKIP_DB: process.env.NEXT_BUILD_SKIP_DB,
 })
-
-// Force skip database during build in production
-if (process.env.NODE_ENV === 'production') {
-  process.env.NEXT_BUILD_SKIP_DB = 'true'
-  console.log('Forced NEXT_BUILD_SKIP_DB=true in production')
-}
 
 app.prepare().then(() => {
   createServer(async (req, res) => {
