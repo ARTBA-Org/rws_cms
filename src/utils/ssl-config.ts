@@ -16,20 +16,14 @@ export const getSSLConfig = () => {
 // Export a function to get the full database connection options
 export const getDBConnectionOptions = (connectionString: string | undefined) => {
   // Skip database connection during build if NEXT_BUILD_SKIP_DB is set
-  if (process.env.NEXT_BUILD_SKIP_DB === 'true' && process.env.NODE_ENV === 'production') {
+  if (process.env.NEXT_BUILD_SKIP_DB === 'true') {
     console.log('⚠️ Skipping database connection during build')
     // Return a minimal configuration that won't be used during build
     return {
-      connectionString: 'postgresql://skip:skip@localhost:5432/skip',
+      connectionString: 'postgresql://skip:skip@skip:5432/skip',
       ssl: { rejectUnauthorized: false },
     }
   }
-
-  if (!connectionString) {
-    throw new Error('Database connection string is required')
-  }
-
-  console.log('Setting up database connection with SSL configuration')
 
   // For AWS Amplify runtime, use the environment variables directly
   if (
@@ -67,6 +61,17 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
     }
   }
 
+  if (!connectionString) {
+    console.error('Database connection string is required and not provided')
+    // Return a minimal configuration that won't be used
+    return {
+      connectionString: 'postgresql://skip:skip@skip:5432/skip',
+      ssl: { rejectUnauthorized: false },
+    }
+  }
+
+  console.log('Setting up database connection with SSL configuration')
+
   // Modify the connection string to use sslmode=no-verify
   let modifiedConnectionString = connectionString
   if (modifiedConnectionString.includes('?')) {
@@ -76,6 +81,9 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
         'sslmode=require',
         'sslmode=no-verify',
       )
+      if (!modifiedConnectionString.includes('sslmode=')) {
+        modifiedConnectionString += '&sslmode=no-verify'
+      }
     }
   } else {
     // Add sslmode=no-verify as a new query parameter
@@ -88,6 +96,16 @@ export const getDBConnectionOptions = (connectionString: string | undefined) => 
 
   // Get SSL configuration
   const ssl = getSSLConfig()
+
+  // Try to parse the connection string to extract host, port, etc.
+  try {
+    const url = new URL(modifiedConnectionString.replace('postgresql://', 'http://'))
+    console.log(
+      `Connecting to database at ${url.hostname}:${url.port || '5432'}/${url.pathname.substring(1)}`,
+    )
+  } catch (err) {
+    console.error('Failed to parse connection string:', err.message)
+  }
 
   return {
     connectionString: modifiedConnectionString,
