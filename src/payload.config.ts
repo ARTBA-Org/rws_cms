@@ -55,36 +55,21 @@ const generateSearchAttributes = (args: any) => {
   return searchAttributes
 }
 
-// S3 Configuration
-const AWS_ACCESS_KEY = process.env.S3_ACCESS_KEY as string | undefined
-const AWS_SECRET_KEY = process.env.S3_SECRET_KEY as string | undefined
-const AWS_REGION = process.env.S3_REGION || 'us-west-1'
-const AWS_ENDPOINT = process.env.S3_ENDPOINT as string | undefined
+// S3 Configuration - Hardcoded values from .env
+const AWS_ACCESS_KEY = 'c258920f1af99511a2d32bb082e999d2'
+const AWS_SECRET_KEY = '726cf05f11d1f8200901c9b5ecb4c6b382332a85463d3c2f09405f16e2cdb540'
+const AWS_REGION = 'us-west-1'
+const AWS_ENDPOINT = 'https://nwquaemdrfuhafnugbgl.supabase.co/storage/v1/s3'
 
-// Algolia Configuration
-const ALGOLIA_APP_ID = process.env.ALGOLIA_APP_ID
-const ALGOLIA_ADMIN_API_KEY = process.env.ALGOLIA_ADMIN_API_KEY
-const ALGOLIA_INDEX = process.env.ALGOLIA_INDEX || 'rs_cms'
+// Algolia Configuration - Hardcoded values from .env
+const ALGOLIA_APP_ID = 'HTODLVG92P'
+const ALGOLIA_ADMIN_API_KEY = '8136653daed7fabb9332f53ec87481a4'
+const ALGOLIA_INDEX = 'rs_cms'
 
-// Database Configuration
-const DATABASE_URI = process.env.DATABASE_URI
-const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || '1234567890'
-
-if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY) {
-  console.warn(
-    'AWS credentials are missing. Please set S3_ACCESS_KEY and S3_SECRET_KEY environment variables.',
-  )
-}
-
-if (!ALGOLIA_APP_ID || !ALGOLIA_ADMIN_API_KEY) {
-  console.warn(
-    'Algolia credentials are missing. Please set ALGOLIA_APP_ID and ALGOLIA_ADMIN_API_KEY environment variables.',
-  )
-}
-
-if (!DATABASE_URI) {
-  console.warn('Database URI is missing. Please set DATABASE_URI environment variable.')
-}
+// Database Configuration - Hardcoded values from .env
+const DATABASE_URI =
+  'postgresql://postgres.nwquaemdrfuhafnugbgl:UHB6tySaRY06Lr8g@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=no-verify'
+const PAYLOAD_SECRET = '8tok6QrKzWdsBag4/MIvm4Pp1TF+d9xx8tok6QrKzWd'
 
 export default buildConfig({
   admin: {
