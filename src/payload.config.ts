@@ -8,8 +8,6 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
-import { getDBConnectionOptions } from './utils/ssl-config'
-import { mockDBAdapter } from './utils/mock-db-adapter'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -72,13 +70,6 @@ const DATABASE_URI =
   'postgresql://postgres.nwquaemdrfuhafnugbgl:UHB6tySaRY06Lr8g@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=no-verify'
 const PAYLOAD_SECRET = '8tok6QrKzWdsBag4/MIvm4Pp1TF+d9xx8tok6QrKzWd'
 
-// Check if we should skip the database connection
-const SKIP_DB = process.env.NEXT_BUILD_SKIP_DB === 'true'
-
-if (SKIP_DB) {
-  console.log('⚠️ NEXT_BUILD_SKIP_DB is set to true, using mock database adapter')
-}
-
 export default buildConfig({
   admin: {
     user: 'users',
@@ -92,12 +83,20 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  // Use the mock adapter when NEXT_BUILD_SKIP_DB is true, otherwise use the postgres adapter
-  db: SKIP_DB
-    ? mockDBAdapter()
-    : postgresAdapter({
-        pool: getDBConnectionOptions(DATABASE_URI),
-      }),
+  // Direct database connection with hardcoded configuration
+  db: postgresAdapter({
+    pool: {
+      connectionString: DATABASE_URI,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      max: 20, // Maximum number of clients in the pool
+      min: 5, // Minimum number of idle clients maintained in the pool
+      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+      connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+      statement_timeout: 60000, // Statement timeout in milliseconds (60 seconds)
+    },
+  }),
   sharp,
   plugins: [
     s3Storage({
