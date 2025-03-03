@@ -25,12 +25,15 @@ frontend:
           PGDATABASE=${PGDATABASE}
           PGUSER=${PGUSER}
           PGPASSWORD=${PGPASSWORD}
-          PGSSLMODE=${PGSSLMODE}
+          PGSSLMODE=no-verify
           NEXT_BUILD_SKIP_DB=true
+          NODE_ENV=production
           EOL
+        - echo "Installing dependencies"
         - npm install
     build:
       commands:
+        - echo "Starting build process with database connection skipped"
         - npm run build
   artifacts:
     baseDirectory: .next
