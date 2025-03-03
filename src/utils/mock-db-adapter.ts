@@ -5,10 +5,11 @@
  * attempts during the build process. It's used when NEXT_BUILD_SKIP_DB is set to true.
  */
 
-import type { DatabaseAdapter } from '@payloadcms/db-postgres'
+import type { TypeWithID } from 'payload/types'
+import type { PaginatedDocs } from 'payload/database'
 
 // Create a mock adapter that implements the minimal interface required
-export const mockDBAdapter = (): DatabaseAdapter => {
+export const mockDBAdapter = () => {
   console.log('⚠️ Using mock database adapter - NO DATABASE CONNECTIONS WILL BE MADE')
 
   return {
@@ -27,7 +28,16 @@ export const mockDBAdapter = (): DatabaseAdapter => {
       console.log('Mock database adapter: disconnect() called - doing nothing')
     },
     // Minimal implementation of required methods
-    find: async () => [],
+    find: async (): Promise<PaginatedDocs<TypeWithID>> => ({
+      docs: [],
+      totalDocs: 0,
+      page: 1,
+      totalPages: 1,
+      hasPrevPage: false,
+      hasNextPage: false,
+      prevPage: null,
+      nextPage: null,
+    }),
     findOne: async () => null,
     create: async () => ({ id: 'mock-id' }),
     createOrUpdate: async () => ({ id: 'mock-id' }),
@@ -43,7 +53,7 @@ export const mockDBAdapter = (): DatabaseAdapter => {
     countDocuments: async () => 0,
     createGlobal: async () => ({}),
     createGlobalVersion: async () => ({}),
-    findVersions: async () => ({
+    findVersions: async (): Promise<PaginatedDocs<TypeWithID>> => ({
       docs: [],
       totalDocs: 0,
       page: 1,
@@ -53,7 +63,7 @@ export const mockDBAdapter = (): DatabaseAdapter => {
       prevPage: null,
       nextPage: null,
     }),
-    findGlobalVersions: async () => ({
+    findGlobalVersions: async (): Promise<PaginatedDocs<TypeWithID>> => ({
       docs: [],
       totalDocs: 0,
       page: 1,
@@ -67,7 +77,7 @@ export const mockDBAdapter = (): DatabaseAdapter => {
     migrateDown: async () => {},
     migrateUp: async () => {},
     migrationExists: async () => false,
-    queryDrafts: async () => ({
+    queryDrafts: async (): Promise<PaginatedDocs<TypeWithID>> => ({
       docs: [],
       totalDocs: 0,
       page: 1,
@@ -77,7 +87,7 @@ export const mockDBAdapter = (): DatabaseAdapter => {
       prevPage: null,
       nextPage: null,
     }),
-    queryVersions: async () => ({
+    queryVersions: async (): Promise<PaginatedDocs<TypeWithID>> => ({
       docs: [],
       totalDocs: 0,
       page: 1,
