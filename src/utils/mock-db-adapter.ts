@@ -7,17 +7,22 @@
 
 import type { TypeWithID } from 'payload'
 import type { PaginatedDocs, DatabaseAdapter } from 'payload'
+import { createDatabaseAdapter } from 'payload/database'
 
 // Create a mock adapter that implements the minimal interface required
-export const mockDBAdapter = (): DatabaseAdapter => {
+export const mockDBAdapter = () => {
   console.log('⚠️ Using mock database adapter - NO DATABASE CONNECTIONS WILL BE MADE')
 
-  return {
+  return createDatabaseAdapter({
     // Required properties for DatabaseAdapterResult
     defaultIDType: 'text' as const, // Explicitly type as 'text' literal
-    init: async () => {
+    init: async ({ payload }) => {
       console.log('Mock database adapter: init() called - doing nothing')
-      return
+      return {
+        payload,
+        name: 'mock',
+        defaultIDType: 'text',
+      }
     },
     // Return a minimal implementation that won't try to connect to a database
     connect: async () => {
@@ -100,5 +105,5 @@ export const mockDBAdapter = (): DatabaseAdapter => {
     beginTransaction: async () => ({ id: 'mock-transaction' }),
     commitTransaction: async () => {},
     rollbackTransaction: async () => {},
-  }
+  })
 }
