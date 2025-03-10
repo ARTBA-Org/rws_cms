@@ -3,6 +3,26 @@ import { getObjectID } from 'payload-plugin-algolia/dist/hooks/syncWithSearch'
 import createClient from 'payload-plugin-algolia/dist/algolia'
 import { AlgoliaSearchConfig } from 'payload-plugin-algolia/dist/types'
 
+// More explicit types for the function arguments
+type CollectionDocument = {
+  id: string
+  title?: string
+  _status?: string
+  [key: string]: unknown
+}
+
+type CollectionInfo = {
+  slug: string
+  [key: string]: unknown
+}
+
+type SearchFunctionArgs = {
+  collection: CollectionInfo
+  doc: CollectionDocument
+  req: { payload: any }
+  previousDoc?: CollectionDocument
+}
+
 // Enhanced version of the syncWithSearch hook with better error handling
 export default function enhancedSyncWithSearch(
   searchConfig: AlgoliaSearchConfig,
@@ -13,7 +33,7 @@ export default function enhancedSyncWithSearch(
       doc,
       req: { payload },
       previousDoc,
-    } = args
+    } = args as SearchFunctionArgs
 
     try {
       if (doc?._status === 'draft' && !previousDoc) {
@@ -62,14 +82,14 @@ export default function enhancedSyncWithSearch(
 
       const generateSearchAttributesFn =
         searchConfig.generateSearchAttributes ||
-        ((args) => {
+        ((searchArgs: SearchFunctionArgs) => {
           return {
-            collection: args.collection.slug,
-            ...args.doc,
+            collection: searchArgs.collection.slug,
+            ...searchArgs.doc,
           }
         })
 
-      const searchDoc = await generateSearchAttributesFn(args)
+      const searchDoc = await generateSearchAttributesFn(args as SearchFunctionArgs)
 
       if (!searchDoc) {
         payload.logger.warn({

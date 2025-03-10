@@ -1,16 +1,21 @@
 // storage-adapter-import-placeholder
 import { postgresAdapter } from '@payloadcms/db-postgres'
-import { payloadCloudPlugin } from '@payloadcms/payload-cloud'
+// Remove unused import
+// import { payloadCloudPlugin } from '@payloadcms/payload-cloud'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
-import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
+// AlgoliaSearchPlugin is no longer used directly
+// import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
 import type { Config, Plugin } from 'payload/config'
 import type { AlgoliaSearchConfig } from 'payload-plugin-algolia/dist/types'
 import enhancedSyncWithSearch from './hooks/enhancedAlgoliaSync'
+// Import createClient and getObjectID properly
+import createClient from 'payload-plugin-algolia/dist/algolia'
+import { getObjectID } from 'payload-plugin-algolia/dist/hooks/syncWithSearch'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -21,7 +26,13 @@ import Slides from './collections/Slides'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-const generateSearchAttributes = (args: any) => {
+// Fix any types with more specific types where possible
+type SearchAttributesArgs = {
+  doc: Record<string, unknown>
+  collection: { slug: string }
+}
+
+const generateSearchAttributes = (args: SearchAttributesArgs) => {
   try {
     const { doc, collection } = args
 
@@ -33,7 +44,7 @@ const generateSearchAttributes = (args: any) => {
       return null
     }
 
-    let searchAttributes: Record<string, any> = {
+    let searchAttributes: Record<string, unknown> = {
       title: doc.title || '',
       text: doc.description || '',
       collection: collection.slug,
@@ -43,8 +54,10 @@ const generateSearchAttributes = (args: any) => {
     if (collection.slug === 'courses') {
       searchAttributes = {
         ...searchAttributes,
-        learningObjectives:
-          doc.learningObjectives?.map((obj: any) => obj.objective).join(' ') || '',
+        learningObjectives: Array.isArray(doc.learningObjectives)
+          ? doc.learningObjectives.map((obj: Record<string, unknown>) => obj.objective).join(' ') ||
+            ''
+          : '',
         modules: doc.modules, // Keeping modules IDs for now
       }
     }
@@ -105,14 +118,13 @@ const EnhancedAlgoliaSearchPlugin =
                 ],
                 afterDelete: [
                   ...(existingHooks?.afterDelete || []),
-                  // Keep using the original delete function
-                  (args: any) => {
+                  // Enhanced delete function with proper imports
+                  (args: { collection: { slug: string }; doc: { id: string } }) => {
                     try {
                       const { collection, doc } = args
                       const { id } = doc
-                      const searchClient = require('payload-plugin-algolia/dist/algolia').default(
-                        searchConfig.algolia,
-                      )
+                      // Use imported createClient instead of require
+                      const searchClient = createClient(searchConfig.algolia)
                       const objectID = `${collection.slug}:${id}`
 
                       const deleteOp = searchClient.deleteObject(objectID)
