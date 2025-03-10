@@ -34,9 +34,8 @@ if (typeof process !== 'undefined') {
   process.env.NODE_OPTIONS = process.env.NODE_OPTIONS || '--max-old-space-size=4096'
 }
 
-// Disable telemetry programmatically - use a different approach to avoid require()
+// Disable telemetry programmatically without using require()
 if (typeof process !== 'undefined') {
-  // Just disable telemetry via environment variable instead
   process.env.NEXT_TELEMETRY_DISABLED = '1'
 }
 
