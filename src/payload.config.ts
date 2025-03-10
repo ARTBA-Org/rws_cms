@@ -8,6 +8,9 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
 import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
+import type { Config, Plugin } from 'payload/config'
+import type { AlgoliaSearchConfig } from 'payload-plugin-algolia/dist/types'
+import enhancedSyncWithSearch from './hooks/enhancedAlgoliaSync'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -19,40 +22,130 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 const generateSearchAttributes = (args: any) => {
-  const { doc, collection } = args
-  let searchAttributes: Record<string, any> = {
-    title: doc.title,
-    text: doc.description,
-    collection: collection.slug,
-    image: doc.image,
-  }
+  try {
+    const { doc, collection } = args
 
-  if (collection.slug === 'courses') {
-    searchAttributes = {
-      ...searchAttributes,
-      learningObjectives: doc.learningObjectives?.map((obj: any) => obj.objective).join(' ') || '',
-      modules: doc.modules, // Keeping modules IDs for now
+    if (!doc || !collection) {
+      console.error('Missing doc or collection in generateSearchAttributes', {
+        hasDoc: !!doc,
+        hasCollection: !!collection,
+      })
+      return null
+    }
+
+    let searchAttributes: Record<string, any> = {
+      title: doc.title || '',
+      text: doc.description || '',
+      collection: collection.slug,
+      image: doc.image,
+    }
+
+    if (collection.slug === 'courses') {
+      searchAttributes = {
+        ...searchAttributes,
+        learningObjectives:
+          doc.learningObjectives?.map((obj: any) => obj.objective).join(' ') || '',
+        modules: doc.modules, // Keeping modules IDs for now
+      }
+    }
+
+    if (collection.slug === 'modules') {
+      searchAttributes = {
+        ...searchAttributes,
+        slides: doc.slides, // Keeping slides IDs for now
+      }
+    }
+
+    if (collection.slug === 'slides') {
+      searchAttributes = {
+        ...searchAttributes,
+        type: doc.type,
+        slide_image: doc.slide_image,
+        urls: doc.urls,
+      }
+    }
+
+    return searchAttributes
+  } catch (error) {
+    console.error(
+      'Error in generateSearchAttributes:',
+      error instanceof Error ? error.message : String(error),
+    )
+    // Return minimal valid search attributes to avoid breaking the sync
+    return {
+      title: args?.doc?.title || 'Untitled',
+      text: args?.doc?.description || '',
+      collection: args?.collection?.slug || 'unknown',
     }
   }
-
-  if (collection.slug === 'modules') {
-    searchAttributes = {
-      ...searchAttributes,
-      slides: doc.slides, // Keeping slides IDs for now
-    }
-  }
-
-  if (collection.slug === 'slides') {
-    searchAttributes = {
-      ...searchAttributes,
-      type: doc.type,
-      slide_image: doc.slide_image,
-      urls: doc.urls,
-    }
-  }
-
-  return searchAttributes
 }
+
+// Create an enhanced version of the AlgoliaSearchPlugin that uses our custom sync function
+const EnhancedAlgoliaSearchPlugin =
+  (searchConfig: AlgoliaSearchConfig): Plugin =>
+  (config: Config): Config => {
+    const { collections } = config
+
+    if (collections) {
+      const enabledCollections = searchConfig.collections || []
+
+      const collectionsWithSearchHooks = collections
+        ?.map((collection) => {
+          const { hooks: existingHooks } = collection
+          const isEnabled = enabledCollections.indexOf(collection.slug) > -1
+
+          if (isEnabled) {
+            return {
+              ...collection,
+              hooks: {
+                ...collection.hooks,
+                afterChange: [
+                  ...(existingHooks?.afterChange || []),
+                  enhancedSyncWithSearch(searchConfig),
+                ],
+                afterDelete: [
+                  ...(existingHooks?.afterDelete || []),
+                  // Keep using the original delete function
+                  (args: any) => {
+                    try {
+                      const { collection, doc } = args
+                      const { id } = doc
+                      const searchClient = require('payload-plugin-algolia/dist/algolia').default(
+                        searchConfig.algolia,
+                      )
+                      const objectID = `${collection.slug}:${id}`
+
+                      const deleteOp = searchClient.deleteObject(objectID)
+
+                      if (searchConfig.waitForHook === true) {
+                        return deleteOp.wait()
+                      }
+
+                      return Promise.resolve()
+                    } catch (error) {
+                      console.error(
+                        `Error deleting from search: ${error instanceof Error ? error.message : String(error)}`,
+                      )
+                      return Promise.resolve()
+                    }
+                  },
+                ],
+              },
+            }
+          }
+
+          return collection
+        })
+        .filter(Boolean)
+
+      return {
+        ...config,
+        collections: [...(collectionsWithSearchHooks || [])],
+      }
+    }
+
+    return config
+  }
 
 // S3 Configuration - Hardcoded values from .env
 const AWS_ACCESS_KEY = 'c258920f1af99511a2d32bb082e999d2'
@@ -116,7 +209,8 @@ export default buildConfig({
         endpoint: AWS_ENDPOINT,
       },
     }),
-    AlgoliaSearchPlugin({
+    // Use our enhanced Algolia search plugin
+    EnhancedAlgoliaSearchPlugin({
       algolia: {
         appId: ALGOLIA_APP_ID,
         apiKey: ALGOLIA_ADMIN_API_KEY,
