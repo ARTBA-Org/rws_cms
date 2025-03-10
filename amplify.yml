@@ -4,14 +4,14 @@ frontend:
     preBuild:
       commands:
         - nvm use 20
-        - echo "Setting up environment variables using amplify-env-setup.js"
-        - node scripts/amplify-env-setup.js
+        - echo "Running automatic build fixes for Amplify deployment"
+        - node scripts/fix-amplify-build.js
         - echo "Installing dependencies"
         - npm install
     build:
       commands:
         - echo "Starting build process with database connection skipped"
-        - npm run build
+        - NEXT_BUILD_SKIP_DB=true npm run build
   artifacts:
     baseDirectory: .next
     files:
