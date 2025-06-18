@@ -160,10 +160,10 @@ const EnhancedAlgoliaSearchPlugin =
   }
 
 // Environment Configuration - Read from .env file
-const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY
-const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY
-const AWS_REGION = process.env.AWS_REGION || 'us-west-1'
-const AWS_ENDPOINT = process.env.AWS_ENDPOINT
+const AWS_ACCESS_KEY = process.env.S3_ACCESS_KEY || process.env.AWS_ACCESS_KEY
+const AWS_SECRET_KEY = process.env.S3_SECRET_KEY || process.env.AWS_SECRET_KEY
+const AWS_REGION = process.env.S3_REGION || process.env.AWS_REGION || 'us-west-1'
+const AWS_ENDPOINT = process.env.S3_ENDPOINT || process.env.AWS_ENDPOINT
 
 const ALGOLIA_APP_ID = process.env.ALGOLIA_APP_ID
 const ALGOLIA_ADMIN_API_KEY = process.env.ALGOLIA_ADMIN_API_KEY
