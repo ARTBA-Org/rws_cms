@@ -159,21 +159,31 @@ const EnhancedAlgoliaSearchPlugin =
     return config
   }
 
-// S3 Configuration - Hardcoded values from .env
-const AWS_ACCESS_KEY = 'c258920f1af99511a2d32bb082e999d2'
-const AWS_SECRET_KEY = '726cf05f11d1f8200901c9b5ecb4c6b382332a85463d3c2f09405f16e2cdb540'
-const AWS_REGION = 'us-west-1'
-const AWS_ENDPOINT = 'https://nwquaemdrfuhafnugbgl.supabase.co/storage/v1/s3'
+// Environment Configuration - Read from .env file
+const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY
+const AWS_SECRET_KEY = process.env.AWS_SECRET_KEY
+const AWS_REGION = process.env.AWS_REGION || 'us-west-1'
+const AWS_ENDPOINT = process.env.AWS_ENDPOINT
 
-// Algolia Configuration - Hardcoded values from .env
-const ALGOLIA_APP_ID = 'HTODLVG92P'
-const ALGOLIA_ADMIN_API_KEY = '8136653daed7fabb9332f53ec87481a4'
-const ALGOLIA_INDEX = 'rs_cms'
+const ALGOLIA_APP_ID = process.env.ALGOLIA_APP_ID
+const ALGOLIA_ADMIN_API_KEY = process.env.ALGOLIA_ADMIN_API_KEY
+const ALGOLIA_INDEX = process.env.ALGOLIA_INDEX || 'rs_cms'
 
-// Database Configuration - Hardcoded values from .env
-const DATABASE_URI =
-  'postgresql://postgres.nwquaemdrfuhafnugbgl:UHB6tySaRY06Lr8g@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=no-verify'
-const PAYLOAD_SECRET = '8tok6QrKzWdsBag4/MIvm4Pp1TF+d9xx8tok6QrKzWd'
+const DATABASE_URI = process.env.DATABASE_URI
+const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET
+
+// Validate required environment variables
+if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY || !AWS_ENDPOINT) {
+  console.error('Missing required AWS S3 environment variables')
+}
+
+if (!ALGOLIA_APP_ID || !ALGOLIA_ADMIN_API_KEY) {
+  console.error('Missing required Algolia environment variables')
+}
+
+if (!DATABASE_URI || !PAYLOAD_SECRET) {
+  console.error('Missing required database or payload secret environment variables')
+}
 
 export default buildConfig({
   admin: {

@@ -15,19 +15,19 @@
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start"
   },
   "dependencies": {
-    "@payloadcms/db-postgres": "3.9.0",
-    "@payloadcms/next": "3.9.0",
-    "@payloadcms/payload-cloud": "3.9.0",
-    "@payloadcms/richtext-lexical": "3.9.0",
-    "@payloadcms/storage-s3": "3.9.0",
+    "@payloadcms/db-postgres": "3.43.0",
+    "@payloadcms/next": "3.43.0",
+    "@payloadcms/payload-cloud": "3.43.0",
+    "@payloadcms/richtext-lexical": "3.43.0",
+    "@payloadcms/storage-s3": "3.43.0",
     "cross-env": "^7.0.3",
     "graphql": "^16.8.1",
     "next": "15.1.0",
-    "payload": "3.9.0",
+    "payload": "3.43.0",
     "payload-plugin-algolia": "^0.1.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "sharp": "0.32.6"
+    "sharp": "0.34.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -41,5 +41,10 @@
   },
   "engines": {
     "node": "^18.20.2 || >=20.9.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp"
+    ]
   }
 }
