@@ -173,16 +173,20 @@ const DATABASE_URI = process.env.DATABASE_URI
 const PAYLOAD_SECRET = process.env.PAYLOAD_SECRET
 
 // Validate required environment variables
+if (!DATABASE_URI) {
+  throw new Error('DATABASE_URI environment variable is required')
+}
+
+if (!PAYLOAD_SECRET) {
+  throw new Error('PAYLOAD_SECRET environment variable is required')
+}
+
 if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY || !AWS_ENDPOINT) {
-  console.error('Missing required AWS S3 environment variables')
+  console.warn('Missing AWS S3 environment variables - S3 storage will be disabled')
 }
 
 if (!ALGOLIA_APP_ID || !ALGOLIA_ADMIN_API_KEY) {
-  console.error('Missing required Algolia environment variables')
-}
-
-if (!DATABASE_URI || !PAYLOAD_SECRET) {
-  console.error('Missing required database or payload secret environment variables')
+  console.warn('Missing Algolia environment variables - Search functionality will be disabled')
 }
 
 export default buildConfig({
@@ -214,33 +218,39 @@ export default buildConfig({
   }),
   sharp,
   plugins: [
-    s3Storage({
-      collections: {
-        media: {
-          prefix: 'media',
+    // Conditionally add S3 storage if environment variables are available
+    AWS_ACCESS_KEY &&
+      AWS_SECRET_KEY &&
+      AWS_ENDPOINT &&
+      s3Storage({
+        collections: {
+          media: {
+            prefix: 'media',
+          },
         },
-      },
-      bucket: 'Media',
-      config: {
-        forcePathStyle: true,
-        credentials: {
-          accessKeyId: AWS_ACCESS_KEY,
-          secretAccessKey: AWS_SECRET_KEY,
+        bucket: 'Media',
+        config: {
+          forcePathStyle: true,
+          credentials: {
+            accessKeyId: AWS_ACCESS_KEY,
+            secretAccessKey: AWS_SECRET_KEY,
+          },
+          region: AWS_REGION,
+          endpoint: AWS_ENDPOINT,
         },
-        region: AWS_REGION,
-        endpoint: AWS_ENDPOINT,
-      },
-    }),
-    // Use our enhanced Algolia search plugin
-    EnhancedAlgoliaSearchPlugin({
-      algolia: {
-        appId: ALGOLIA_APP_ID,
-        apiKey: ALGOLIA_ADMIN_API_KEY,
-        index: ALGOLIA_INDEX,
-      },
-      collections: ['courses', 'modules', 'slides'],
-      waitForHook: true,
-      generateSearchAttributes,
-    }),
+      }),
+    // Conditionally add Algolia search plugin if environment variables are available
+    ALGOLIA_APP_ID &&
+      ALGOLIA_ADMIN_API_KEY &&
+      EnhancedAlgoliaSearchPlugin({
+        algolia: {
+          appId: ALGOLIA_APP_ID,
+          apiKey: ALGOLIA_ADMIN_API_KEY,
+          index: ALGOLIA_INDEX,
+        },
+        collections: ['courses', 'modules', 'slides'],
+        waitForHook: true,
+        generateSearchAttributes,
+      }),
   ].filter(Boolean),
 })
