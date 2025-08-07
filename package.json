@@ -18,16 +18,22 @@
     "@payloadcms/db-postgres": "^3.50.0",
     "@payloadcms/next": "^3.50.0",
     "@payloadcms/payload-cloud": "^3.50.0",
+    "@payloadcms/plugin-search": "^3.50.0",
     "@payloadcms/richtext-lexical": "^3.50.0",
     "@payloadcms/storage-s3": "^3.50.0",
     "cross-env": "^7.0.3",
+    "dotenv": "^17.2.1",
     "graphql": "^16.8.1",
     "next": "^15.4.5",
     "payload": "^3.50.0",
     "payload-plugin-algolia": "^0.1.0",
+    "pdf-lib": "^1.17.1",
+    "pdf-to-img": "^4.5.0",
+    "pdf2pic": "^3.2.0",
+    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "sharp": "0.34.2"
+    "sharp": "^0.34.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -36,7 +42,9 @@
     "@types/react-dom": "^19.1.7",
     "eslint": "^9.32.0",
     "eslint-config-next": "^15.4.5",
+    "form-data": "^4.0.4",
     "knowhub": "^1.1.0",
+    "node-fetch": "^3.3.2",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2"
   },

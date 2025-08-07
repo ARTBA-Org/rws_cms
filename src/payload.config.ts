@@ -13,15 +13,15 @@ import { s3Storage } from '@payloadcms/storage-s3'
 import type { Config, Plugin } from 'payload/config'
 import type { AlgoliaSearchConfig } from 'payload-plugin-algolia/dist/types'
 import enhancedSyncWithSearch from './hooks/enhancedAlgoliaSync'
-// Import createClient and getObjectID properly
-import createClient from 'payload-plugin-algolia/dist/algolia'
-import { getObjectID } from 'payload-plugin-algolia/dist/hooks/syncWithSearch'
+// Switch to Payload Search plugin
+import { searchPlugin } from '@payloadcms/plugin-search'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
 import Courses from './collections/Courses'
 import Modules from './collections/Modules'
 import Slides from './collections/Slides'
+import Pdfs from './collections/Pdfs'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -196,7 +196,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Courses, Modules, Slides],
+  collections: [Users, Media, Courses, Modules, Slides, Pdfs],
   editor: lexicalEditor(),
   secret: PAYLOAD_SECRET,
   typescript: {
@@ -218,6 +218,23 @@ export default buildConfig({
   }),
   sharp,
   plugins: [
+    // Payload Search plugin (built-in Postgres search)
+    searchPlugin({
+      collections: ['courses', 'modules', 'slides'],
+      searchOverrides: {
+        fields: ({ defaultFields }) => [
+          ...defaultFields,
+          { name: 'content', type: 'textarea', admin: { readOnly: true } },
+        ],
+      },
+      beforeSync: ({ originalDoc, searchDoc }) => {
+        // Attempt to derive content text from description/title
+        const content = [(originalDoc as any)?.description || '', (originalDoc as any)?.title || '']
+          .filter(Boolean)
+          .join(' ')
+        return { ...searchDoc, content }
+      },
+    }),
     // Conditionally add S3 storage if environment variables are available
     AWS_ACCESS_KEY &&
       AWS_SECRET_KEY &&
@@ -226,6 +243,9 @@ export default buildConfig({
         collections: {
           media: {
             prefix: 'media',
+          },
+          pdfs: {
+            prefix: 'pdfs',
           },
         },
         bucket: 'Media',
@@ -239,18 +259,6 @@ export default buildConfig({
           endpoint: AWS_ENDPOINT,
         },
       }),
-    // Conditionally add Algolia search plugin if environment variables are available
-    ALGOLIA_APP_ID &&
-      ALGOLIA_ADMIN_API_KEY &&
-      EnhancedAlgoliaSearchPlugin({
-        algolia: {
-          appId: ALGOLIA_APP_ID,
-          apiKey: ALGOLIA_ADMIN_API_KEY,
-          index: ALGOLIA_INDEX,
-        },
-        collections: ['courses', 'modules', 'slides'],
-        waitForHook: true,
-        generateSearchAttributes,
-      }),
+    // Disable Algolia plugin by default; re-enable if you prefer Algolia
   ].filter(Boolean),
 })

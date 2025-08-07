@@ -72,6 +72,8 @@ export interface Config {
     courses: Course;
     modules: Module;
     slides: Slide;
+    pdfs: Pdf;
+    search: Search;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -83,6 +85,8 @@ export interface Config {
     courses: CoursesSelect<false> | CoursesSelect<true>;
     modules: ModulesSelect<false> | ModulesSelect<true>;
     slides: SlidesSelect<false> | SlidesSelect<true>;
+    pdfs: PdfsSelect<false> | PdfsSelect<true>;
+    search: SearchSelect<false> | SearchSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -214,6 +218,10 @@ export interface Module {
   moduleThumbnail?: (number | null) | Media;
   slides?: (number | Slide)[] | null;
   slidesColor?: string | null;
+  /**
+   * Upload a PDF to automatically generate slides from each page
+   */
+  pdfUpload?: (number | null) | Pdf;
   search_vector?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -235,6 +243,53 @@ export interface Slide {
       }[]
     | null;
   search_vector?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pdfs".
+ */
+export interface Pdf {
+  id: number;
+  title?: string | null;
+  prefix?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "search".
+ */
+export interface Search {
+  id: number;
+  title?: string | null;
+  priority?: number | null;
+  doc:
+    | {
+        relationTo: 'courses';
+        value: number | Course;
+      }
+    | {
+        relationTo: 'modules';
+        value: number | Module;
+      }
+    | {
+        relationTo: 'slides';
+        value: number | Slide;
+      };
+  content?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -264,6 +319,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'slides';
         value: number | Slide;
+      } | null)
+    | ({
+        relationTo: 'pdfs';
+        value: number | Pdf;
+      } | null)
+    | ({
+        relationTo: 'search';
+        value: number | Search;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -403,6 +466,7 @@ export interface ModulesSelect<T extends boolean = true> {
   moduleThumbnail?: T;
   slides?: T;
   slidesColor?: T;
+  pdfUpload?: T;
   search_vector?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -423,6 +487,37 @@ export interface SlidesSelect<T extends boolean = true> {
         id?: T;
       };
   search_vector?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pdfs_select".
+ */
+export interface PdfsSelect<T extends boolean = true> {
+  title?: T;
+  prefix?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "search_select".
+ */
+export interface SearchSelect<T extends boolean = true> {
+  title?: T;
+  priority?: T;
+  doc?: T;
+  content?: T;
   updatedAt?: T;
   createdAt?: T;
 }
