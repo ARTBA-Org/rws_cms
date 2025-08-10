@@ -6,6 +6,15 @@ const nextConfig = {
   experimental: {
     swcPlugins: [],
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/admin',
+        permanent: false,
+      },
+    ]
+  },
   // Moved from experimental to root level
   serverExternalPackages: ['sharp', 'payload-plugin-algolia'],
   // Disable image optimization to avoid Sharp-related issues

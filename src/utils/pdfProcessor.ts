@@ -1,11 +1,9 @@
 import { PDFDocument } from 'pdf-lib'
-import { pdf } from 'pdf-to-img'
 import { getPayload } from 'payload'
 import config from '../payload.config'
-import fs from 'fs'
 import path from 'path'
+import { Worker } from 'worker_threads'
 import { fileURLToPath } from 'url'
-import type { Module, Media, Slide } from '../payload-types'
 
 export interface PDFProcessResult {
   success: boolean
@@ -31,6 +29,10 @@ export class PDFProcessor {
       moduleId,
       pdfFilename,
     })
+
+    // Normalize module relationship value once for use across try/catch
+    const moduleIdNum = Number(moduleId)
+    const moduleRelValue: number | string = Number.isNaN(moduleIdNum) ? moduleId : moduleIdNum
 
     try {
       console.log('🚀 Initializing Payload...')
@@ -85,63 +87,92 @@ export class PDFProcessor {
         console.log('🧹 Cleaned Array.prototype pollution:', pollutedProps)
       }
 
-      // Initialize conversion with better error handling
-      let conversion: any
-      let usedFallback = false
-      try {
-        conversion = await pdf(pdfBuffer, { scale: 2 })
-      } catch (conversionError) {
-        console.error('❌ Failed to initialize PDF conversion:', conversionError)
-        // Fallback to pdf2pic (avoids pdfjs worker in Next.js runtime)
+      // Use worker thread for PDF processing to isolate canvas dependency
+      let useWorker = process.env.NODE_ENV !== 'test' // Skip worker in tests
+      let images: Buffer[] = []
+
+      if (useWorker) {
         try {
-          const pdf2picMod: any = await import('pdf2pic')
-          const fromBuffer = pdf2picMod.fromBuffer || pdf2picMod.default?.fromBuffer
-          if (!fromBuffer) throw new Error('pdf2pic.fromBuffer not available')
+          console.log('🔧 Using worker thread for PDF conversion')
+          const __filename = fileURLToPath(import.meta.url)
+          const __dirname = path.dirname(__filename)
+          const workerPath = path.join(__dirname, 'pdfWorker.js')
 
-          const converter = fromBuffer(pdfBuffer, {
-            density: 150,
-            format: 'png',
-            width: 1920,
-            height: 1080,
-            preserveAspectRatio: true,
-          })
-          if (typeof converter.setGMClass === 'function') converter.setGMClass(true)
+          images = await new Promise<Buffer[]>((resolve, reject) => {
+            const worker = new Worker(workerPath, {
+              workerData: {
+                pdfBuffer: Array.from(pdfBuffer),
+                totalPages,
+              },
+            })
 
-          conversion = (async function* () {
-            for (let page = 1; page <= totalPages; page++) {
-              const res = await converter(page, { responseType: 'buffer' })
-              const buffer: Buffer = (res && (res.buffer || res.result || res)) as Buffer
-              if (!buffer || buffer.length === 0) {
-                throw new Error(`pdf2pic returned empty buffer for page ${page}`)
+            const collectedImages: Buffer[] = []
+
+            worker.on('message', (msg) => {
+              if (msg.type === 'progress') {
+                console.log(`📄 Processing page ${msg.page}/${msg.totalPages} in worker`)
+              } else if (msg.type === 'complete') {
+                msg.images.forEach((img: any) => collectedImages.push(Buffer.from(img)))
+                resolve(collectedImages)
+              } else if (msg.type === 'error') {
+                reject(new Error(msg.error))
               }
-              yield buffer
-            }
-          })()
-          usedFallback = true
-          console.log('🔁 Using pdf2pic fallback for PDF conversion')
-        } catch (fallbackErr) {
-          throw new Error(
-            `PDF conversion initialization failed: ${
-              fallbackErr instanceof Error ? fallbackErr.message : 'Unknown error'
-            }`,
-          )
-        }
-      } finally {
-        // Restore Array.prototype
-        for (const prop of pollutedProps) {
-          ;(Array.prototype as any)[prop] = arrayProtoBackup[prop]
+            })
+
+            worker.on('error', reject)
+            worker.on('exit', (code) => {
+              if (code !== 0 && collectedImages.length === 0) {
+                reject(new Error(`Worker stopped with exit code ${code}`))
+              }
+            })
+          })
+        } catch (workerError) {
+          console.warn('⚠️ Worker thread failed, falling back to direct processing:', workerError)
+          // Fallback to direct processing
+          useWorker = false
         }
       }
 
-      // Convert each page to image and create slides using async iterator
-      console.log(
-        `🔄 Starting page-by-page processing (${totalPages} pages)${usedFallback ? ' [fallback]' : ''}...`,
-      )
+      // Fallback: direct processing without worker
+      if (!useWorker) {
+        console.log('🔧 Using direct pdf2pic conversion')
+        const pdf2picMod: any = await import('pdf2pic')
+        const fromBuffer = pdf2picMod.fromBuffer || pdf2picMod.default?.fromBuffer
+        if (!fromBuffer) throw new Error('pdf2pic.fromBuffer not available')
+
+        const converter = fromBuffer(pdfBuffer, {
+          density: 150,
+          format: 'png',
+          width: 1920,
+          height: 1080,
+          preserveAspectRatio: true,
+        })
+        if (typeof (converter as any).setGMClass === 'function') (converter as any).setGMClass(true)
+
+        for (let page = 1; page <= totalPages; page++) {
+          const res = await converter(page, { responseType: 'buffer' })
+          const buffer: Buffer = (res && (res.buffer || res.result || res)) as Buffer
+          if (!buffer || buffer.length === 0) {
+            throw new Error(`pdf2pic returned empty buffer for page ${page}`)
+          }
+          images.push(buffer)
+          console.log(`📄 Processing page ${page}/${totalPages}`)
+        }
+      }
+
+      // Restore Array.prototype
+      for (const prop of pollutedProps) {
+        ;(Array.prototype as any)[prop] = arrayProtoBackup[prop]
+      }
+
+      // Create slides from processed images
+      console.log(`🔄 Creating slides from ${images.length} processed pages...`)
 
       let pageNum = 0
-      for await (const imageBuffer of conversion) {
+
+      for (const imageBuffer of images) {
         pageNum++
-        console.log(`📄 Processing page ${pageNum}/${totalPages}`)
+        console.log(`📄 Creating slide ${pageNum}/${totalPages}`)
 
         try {
           console.log(`📦 Image buffer size: ${imageBuffer.length} bytes`)
@@ -161,6 +192,8 @@ export class PDFProcessor {
               name: imageName,
               size: imageBuffer.length,
             },
+            overrideAccess: true,
+            depth: 0,
           })
           console.log(`✅ Image uploaded with ID: ${mediaDoc.id}`)
 
@@ -175,14 +208,17 @@ export class PDFProcessor {
               description: `Page ${pageNum} from ${pdfFilename}`,
               type: 'regular',
               image: mediaDoc.id,
-              urls: [], // Empty array as per API structure
+              urls: [],
             },
+            overrideAccess: true,
+            depth: 0,
           })
           console.log(`✅ Slide created with ID: ${slide.id}`)
 
           slideIds.push(slide.id)
           slidesCreated++
           console.log(`✅ Page ${pageNum} processing complete`)
+          // progress tracking removed
         } catch (pageError) {
           console.error(`❌ Error processing page ${pageNum}:`, pageError)
           // Continue with next page even if one fails
@@ -217,6 +253,7 @@ export class PDFProcessor {
           depth: 0,
         })
         console.log('✅ Module updated successfully')
+        // success status tracking removed
       } catch (updateErr) {
         console.warn('⚠️ Immediate module update failed, retrying shortly...', updateErr)
         // Retry after lock cleanup finishes
@@ -229,7 +266,9 @@ export class PDFProcessor {
               overrideAccess: true,
               depth: 0,
             })
-            .then(() => console.log('✅ Module updated on retry'))
+            .then(async () => {
+              console.log('✅ Module updated on retry')
+            })
             .catch((err) => console.error('❌ Retry update failed:', err))
         }, 1500)
       }
@@ -244,6 +283,7 @@ export class PDFProcessor {
     } catch (error) {
       console.error('💥 PDF processing error:', error)
       console.error('💥 Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+      // failure status tracking removed
       return {
         success: false,
         slidesCreated: 0,

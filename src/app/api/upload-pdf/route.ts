@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PDFProcessor } from '../../../utils/pdfProcessor'
+// PDF processing removed
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,25 +23,10 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Process PDF
-    const processor = new PDFProcessor()
-    const result = await processor.processPDFToSlides(buffer, moduleId)
-
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: `Successfully created ${result.slidesCreated} slides from PDF`,
-        slidesCreated: result.slidesCreated,
-      })
-    } else {
-      return NextResponse.json(
-        {
-          success: false,
-          error: result.errors?.join(', ') || 'Failed to process PDF',
-        },
-        { status: 500 },
-      )
-    }
+    return NextResponse.json(
+      { success: false, error: 'PDF processing is disabled' },
+      { status: 410 },
+    )
   } catch (error) {
     console.error('PDF upload error:', error)
     return NextResponse.json(

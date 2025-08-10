@@ -5,9 +5,14 @@ const Media: CollectionConfig = {
   admin: {
     hidden: false,
   },
+  access: {
+    // Allow public read so the server can fetch PDFs from /api/media/file/* during processing
+    read: () => true,
+  },
   upload: {
     staticDir: 'media',
-    mimeTypes: ['image/*', 'video/*'],
+    // Allow PDFs so modules can upload a PDF file for slide generation
+    mimeTypes: ['image/*', 'video/*', 'application/pdf'],
     imageSizes: [
       {
         name: 'thumbnail',

@@ -21,7 +21,6 @@ import Media from './collections/Media'
 import Courses from './collections/Courses'
 import Modules from './collections/Modules'
 import Slides from './collections/Slides'
-import Pdfs from './collections/Pdfs'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -196,7 +195,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Courses, Modules, Slides, Pdfs],
+  collections: [Users, Media, Courses, Modules, Slides],
   editor: lexicalEditor(),
   secret: PAYLOAD_SECRET,
   typescript: {
@@ -243,9 +242,6 @@ export default buildConfig({
         collections: {
           media: {
             prefix: 'media',
-          },
-          pdfs: {
-            prefix: 'pdfs',
           },
         },
         bucket: 'Media',
