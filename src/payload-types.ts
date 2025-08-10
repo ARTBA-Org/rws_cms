@@ -216,7 +216,7 @@ export interface Module {
   moduleThumbnail?: (number | null) | Media;
   slides?: (number | Slide)[] | null;
   /**
-   * Upload a PDF to generate slides from each page
+   * Upload a PDF file here, then use the processing button below to convert it into slides.
    */
   pdfUpload?: (number | null) | Media;
   slidesColor?: string | null;

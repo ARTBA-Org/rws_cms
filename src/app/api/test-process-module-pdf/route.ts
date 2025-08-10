@@ -18,13 +18,57 @@ export async function POST(request: NextRequest) {
 
     // Load module
     const mod: any = await payload.findByID({ collection: 'modules', id: String(moduleId) })
+    console.log('📋 Debug: Module data:', {
+      id: mod.id,
+      title: mod.title,
+      pdfUpload: mod.pdfUpload,
+      pdfUploadType: typeof mod.pdfUpload,
+    })
 
     // Determine media doc holding the uploaded PDF
-    const effectiveMediaId =
+    let effectiveMediaId =
       mediaId || (typeof mod.pdfUpload === 'object' ? mod.pdfUpload?.id : mod.pdfUpload)
+    console.log('📋 Debug: Effective media ID:', effectiveMediaId)
+
+    // If no PDF is saved on the module, try to find a recently uploaded PDF
+    if (!effectiveMediaId) {
+      console.log('🔍 No PDF saved on module, checking for recent uploads...')
+
+      // Look for PDFs uploaded in the last hour that might belong to this module
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      const recentMedia = await payload.find({
+        collection: 'media',
+        where: {
+          mimeType: {
+            equals: 'application/pdf',
+          },
+          createdAt: {
+            greater_than: oneHourAgo.toISOString(),
+          },
+        },
+        sort: '-createdAt',
+        limit: 1,
+      })
+
+      if (recentMedia.docs.length > 0) {
+        effectiveMediaId = recentMedia.docs[0].id
+        console.log('📋 Found recent PDF upload:', {
+          id: effectiveMediaId,
+          filename: (recentMedia.docs[0] as any).filename,
+        })
+      }
+    }
+
     if (!effectiveMediaId) {
       return NextResponse.json(
-        { error: 'No PDF uploaded on module and no mediaId provided' },
+        {
+          error: 'No PDF uploaded on module. Please save the module after uploading a PDF.',
+          debug: {
+            moduleId,
+            pdfUpload: mod.pdfUpload,
+            pdfUploadType: typeof mod.pdfUpload,
+          },
+        },
         { status: 400 },
       )
     }
@@ -55,7 +99,7 @@ export async function POST(request: NextRequest) {
     const ab = await res.arrayBuffer()
     const pdfBuffer = Buffer.from(ab)
 
-    const { PDFProcessor } = await import('../../../utils/pdfProcessor')
+    const { PDFProcessor } = await import('../../../utils/pdfProcessorWorking')
     const processor = new PDFProcessor()
     const result = await processor.processPDFToSlides(
       pdfBuffer,
