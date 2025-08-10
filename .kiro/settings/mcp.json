@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "supabase_rs+": {
+      "timeout": 60,
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_3546f61a2f890999e5b46a130a8cf50ad3d28209"
+      ],
+      "enabled": true,
+      "autoApprove": [
+        "list_organizations",
+        "get_organization",
+        "list_projects",
+        "get_project",
+        "list_branches",
+        "list_tables",
+        "list_extensions",
+        "list_migrations",
+        "get_user",
+        "list_users",
+        "list_edge_functions",
+        "get_logs",
+        "get_advisors",
+        "get_project_url",
+        "get_anon_key",
+        "generate_typescript_types",
+        "search_docs",
+        "list_tables",
+        "execute_sql"
+      ]
+    }
+  }
+}

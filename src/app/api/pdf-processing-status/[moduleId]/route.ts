@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProcessingStatus } from '../../../../utils/processingStatus'
 
-export async function GET(request: NextRequest, { params }: { params: { moduleId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ moduleId: string }> },
+) {
   try {
-    const { moduleId } = params
+    const { moduleId } = await params
 
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })

@@ -24,7 +24,7 @@ export default function ProcessPdfButtonSimple() {
     console.log('🔧 Processing PDF for module:', moduleId)
 
     try {
-      const response = await fetch('/api/test-process-module-pdf', {
+      const response = await fetch('/api/process-module-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
