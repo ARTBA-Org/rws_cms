@@ -104,7 +104,7 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
       // Add a client-side timeout of 25 seconds
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 25000)
-      
+
       const response = await fetch('/api/process-module-pdf', {
         method: 'POST',
         headers: {
@@ -113,7 +113,7 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
         body: JSON.stringify({ moduleId }),
         signal: controller.signal,
       })
-      
+
       clearTimeout(timeoutId)
 
       const result = await response.json()
@@ -152,7 +152,9 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        setMessage('⏱️ Processing is taking longer than expected. This may be due to a large PDF. Please wait a moment and refresh the page to see if slides were created.')
+        setMessage(
+          '⏱️ Processing is taking longer than expected. This may be due to a large PDF. Please wait a moment and refresh the page to see if slides were created.',
+        )
       } else {
         setMessage(`❌ Network error: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
