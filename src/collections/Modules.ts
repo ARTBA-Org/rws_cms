@@ -9,9 +9,16 @@ const Modules: CollectionConfig = {
   hooks: {
     afterChange: [
       async ({ doc, previousDoc, operation, req }) => {
-        // Only trigger on updates (not creates) and when a PDF is newly uploaded
-        if (operation === 'update' && doc.pdfUpload && doc.pdfUpload !== previousDoc?.pdfUpload) {
-          console.log('🔄 PDF upload detected, triggering automatic processing...')
+        // Only trigger automatic processing when explicitly enabled via env flag
+        const autoProcess = process.env.PDF_AUTO_PROCESS_ON_UPLOAD === 'true'
+        // Only consider updates where a PDF has just been set
+        if (
+          autoProcess &&
+          operation === 'update' &&
+          doc.pdfUpload &&
+          doc.pdfUpload !== previousDoc?.pdfUpload
+        ) {
+          console.log('🔄 PDF upload detected, auto-processing is enabled by env, starting...')
 
           try {
             // Import the PDF processor

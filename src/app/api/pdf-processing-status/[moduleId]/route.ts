@@ -15,7 +15,16 @@ export async function GET(
     // Get current status from utility
     const status = getProcessingStatus(moduleId)
 
-    return NextResponse.json(status)
+    // Provide defaults compatible with UI progress components
+    return NextResponse.json({
+      isProcessing: !!status.isProcessing,
+      stage: status.stage || 'idle',
+      currentPage: status.currentPage || 0,
+      totalPages: status.totalPages || 0,
+      slidesCreated: status.slidesCreated || 0,
+      error: status.error,
+      startTime: status.startTime,
+    })
   } catch (error) {
     console.error('Error fetching processing status:', error)
     return NextResponse.json({ error: 'Failed to fetch processing status' }, { status: 500 })

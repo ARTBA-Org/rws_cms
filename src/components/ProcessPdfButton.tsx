@@ -204,7 +204,7 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
 
   const getDescription = () => {
     if (!hasSlides) {
-      return 'PDF uploaded! Processing will start automatically, or click the button below to process manually.'
+      return 'PDF uploaded. Click the button below to process it into slides.'
     }
     return `Found ${moduleData.slides.length} existing slides. You can re-process the PDF to update them.`
   }
@@ -280,6 +280,15 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
           }}
         >
           {message}
+        </div>
+      )}
+
+      {/* Inline progress indicator */}
+      {!isProcessing && !hasSlides && moduleId && (
+        <div style={{ marginTop: 8 }}>
+          <em style={{ color: '#6c757d', fontSize: 12 }}>
+            After clicking Process, you can continue editing. We’ll show progress here.
+          </em>
         </div>
       )}
     </div>

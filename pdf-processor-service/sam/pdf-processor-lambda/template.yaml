@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  pdf-processor-lambda
+
+  Sample SAM Template for pdf-processor-lambda
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Parameters:
+  OpenAIApiKey:
+    Type: String
+    NoEcho: true
+
+Globals:
+  Function:
+    Timeout: 300
+
+Resources:
+  PdfProcessorFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.handler
+      Runtime: python3.11
+      Architectures:
+        - x86_64
+      MemorySize: 2048
+      Environment:
+        Variables:
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          BUCKET_NAME: !Ref UploadsBucket
+      Events:
+        AnyApi:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: any
+
+  UploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-${AWS::Region}-${AWS::AccountId}-uploads"
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: ["GET", "PUT", "POST", "HEAD"]
+            AllowedOrigins: ["*"]
+            MaxAge: 3600
+
+  FunctionBucketPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: PdfProcessorS3Access
+      Roles:
+        - !Ref PdfProcessorFunctionRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource: !Sub "arn:aws:s3:::${UploadsBucket}/*"
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub "arn:aws:s3:::${UploadsBucket}"
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  ApiUrl:
+    Description: "API Gateway URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  FunctionArn:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt PdfProcessorFunction.Arn
+  FunctionRoleArn:
+    Description: "Implicit IAM Role"
+    Value: !GetAtt PdfProcessorFunctionRole.Arn
+  BucketName:
+    Description: "Uploads bucket"
+    Value: !Ref UploadsBucket
