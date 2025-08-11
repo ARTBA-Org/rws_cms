@@ -12,7 +12,12 @@ export async function POST(request: NextRequest) {
     const payload = await getPayload({ config })
 
     // Load module and ensure pdfUpload exists
-    const mod: any = await payload.findByID({ collection: 'modules', id: String(moduleId) })
+    const mod: any = await payload.findByID({
+      collection: 'modules',
+      id: String(moduleId),
+      overrideAccess: true,
+      depth: 0,
+    })
     const pdfUpload = mod.pdfUpload
     const mediaId = typeof pdfUpload === 'object' ? (pdfUpload as any).id : pdfUpload
     if (!mediaId) {
@@ -23,6 +28,8 @@ export async function POST(request: NextRequest) {
     const mediaDoc: any = await payload.findByID({
       collection: 'media',
       id: String(mediaId),
+      overrideAccess: true,
+      depth: 0,
     })
     if (!mediaDoc?.url) {
       return NextResponse.json({ error: 'Media file has no accessible URL' }, { status: 400 })
@@ -42,24 +49,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the PDF bytes from media storage
-    const SERVER_ORIGIN =
-      process.env.PAYLOAD_PUBLIC_SERVER_URL || `http://localhost:${process.env.PORT || 3001}`
-    const absoluteUrl = mediaDoc.url.startsWith('http')
-      ? mediaDoc.url
-      : `${SERVER_ORIGIN}${mediaDoc.url}`
-
-    const cookie = request.headers.get('cookie') || ''
-    const pdfRes = await fetch(absoluteUrl, {
-      headers: cookie ? { cookie } : undefined,
-      cache: 'no-store',
-    })
-    if (!pdfRes.ok) {
+    // Read the PDF file directly from Payload local API (no HTTP/cookies)
+    const fileId = typeof mediaDoc?.id === 'string' ? mediaDoc.id : String(mediaDoc?.id)
+    const file = await payload.findByID({ collection: 'media', id: fileId, overrideAccess: true })
+    if (!file || !file.filename) {
+      return NextResponse.json({ error: 'Media file not found' }, { status: 404 })
+    }
+    const filePath = file.url as string
+    const serverOrigin = process.env.PAYLOAD_PUBLIC_SERVER_URL || ''
+    const finalUrl = filePath.startsWith('http') ? filePath : `${serverOrigin}${filePath}`
+    const bufRes = await fetch(finalUrl, { cache: 'no-store' })
+    if (!bufRes.ok) {
       return NextResponse.json(
-        { error: `Failed to fetch PDF: ${pdfRes.status} ${pdfRes.statusText}` },
+        { error: `Failed to fetch media: ${bufRes.status}` },
         { status: 502 },
       )
     }
-    const pdfBuffer = Buffer.from(await pdfRes.arrayBuffer())
+    const pdfBuffer = Buffer.from(await bufRes.arrayBuffer())
 
     // 1) Presign upload
     const presign = await fetch(`${apiBase}/presign-upload`, {

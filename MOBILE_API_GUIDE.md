@@ -77,6 +77,7 @@ Authorization: JWT <token>
 ```
 
 Notes:
+- Payload uses numeric IDs for documents. Treat IDs as strings in clients but pass them back verbatim, e.g., `"17"` for "Working at Night". Do not invent IDs like `course_1`.
 - Each course contains a `modules` relationship. With `depth=0`, that field is an array of IDs; you can compute `moduleCount = modules.length`.
 
 ### 2) Course detail with modules
@@ -180,20 +181,20 @@ Response (truncated):
 }
 ```
 
-### Fetch courses
+### Fetch courses (depth=0)
 
 ```
 GET /api/courses?limit=50&depth=0
 Authorization: JWT <JWT>
 ```
 
-Example item:
+Example item (note numeric `id`):
 
 ```json
 {
-  "id": "course_1",
+  "id": 17,
   "title": "Working at Night",
-  "modules": ["mod_1", "mod_2", "mod_3", "mod_4"]
+  "modules": [21, 22, 23, 24]
 }
 ```
 
@@ -202,17 +203,17 @@ Compute module count as `modules.length`.
 ### Course detail → modules list and slide counts
 
 ```
-GET /api/courses/course_1?depth=1
+GET /api/courses/17?depth=1
 Authorization: JWT <JWT>
 ```
 
-Example module in response:
+Example module in response (IDs can be numeric or expanded depending on `depth`):
 
 ```json
 {
-  "id": "mod_1",
+  "id": 101,
   "title": "Worker Fatigue",
-  "slides": ["slide_1", "slide_2", "slide_3", "..."],
+  "slides": [201, 202, 203],
   "moduleThumbnail": { "url": "/media/xyz.jpg" }
 }
 ```
@@ -222,14 +223,14 @@ Compute slide count as `slides.length`.
 ### Module detail → slides
 
 ```
-GET /api/modules/mod_1?depth=1
+GET /api/modules/101?depth=1
 Authorization: JWT <JWT>
 ```
 
 If you need full slide docs with media expanded:
 
 ```
-GET /api/slides?where[id][in]=slide_1,slide_2,...&limit=200&depth=1
+GET /api/slides?where[id][in]=201,202,...&limit=200&depth=1
 Authorization: JWT <JWT>
 ```
 
