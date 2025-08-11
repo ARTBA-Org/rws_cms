@@ -275,7 +275,17 @@ export async function POST(request: NextRequest) {
     }
 
     const pageToAnalysis = new Map<number, ReturnType<typeof normalize>>()
-    for (const r of results) pageToAnalysis.set(r.page, normalize(r.analysis))
+    const pagesOrder = imagesToProcess.map((i) => i.page)
+    const aiPages = results.map((r) => r.page)
+    const aiPagesMatch = aiPages.every((p) => pagesOrder.includes(p))
+    if (aiPagesMatch) {
+      for (const r of results) pageToAnalysis.set(r.page, normalize(r.analysis))
+    } else {
+      // Fallback: some Lambdas return 1..N relative to batch. Align by index.
+      for (let i = 0; i < Math.min(results.length, pagesOrder.length); i++) {
+        pageToAnalysis.set(pagesOrder[i], normalize(results[i].analysis))
+      }
+    }
 
     // Create slides and attach to module
     const slideIds: Array<number | string> = []
@@ -332,7 +342,14 @@ export async function POST(request: NextRequest) {
                   (analysis.key_points?.length
                     ? `Key points:\n- ${analysis.key_points.join('\n- ')}`
                     : `Page ${img.page} from ${mediaDoc.filename || 'document.pdf'}`),
-                type: 'regular',
+                type: (() => {
+                  const text = `${analysis.title} ${analysis.summary} ${analysis.topic}`.toLowerCase()
+                  if (/\bquiz\b|\bquestion\b|true\/?false|multiple choice/.test(text)) return 'quiz'
+                  if (/\breference\b|\breferences\b|\bcitation\b/.test(text)) return 'reference'
+                  if (/\bvideo\b|\bwatch\b/.test(text)) return 'video'
+                  if (/\bresource(s)?\b|\breading\b/.test(text)) return 'resources'
+                  return 'regular'
+                })(),
                 image: mediaImage.id,
                 urls: [],
               },
