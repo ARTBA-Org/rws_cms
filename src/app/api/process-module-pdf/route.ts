@@ -117,12 +117,12 @@ export async function POST(request: NextRequest) {
     const convert = await convRes.json()
     const images: Array<{ page: number; key: string; url: string }> = convert.images || []
 
-    // 4) AI analysis
+    // 4) AI analysis (first page only to avoid timeout)
     const aiRes = await fetch(`${apiBase}/process-from-s3`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Process all pages
-      body: JSON.stringify({ payload: { key, max_pages: 0, debug: true } }),
+      // Process only first page for quick response
+      body: JSON.stringify({ payload: { key, max_pages: 1, debug: true } }),
       cache: 'no-store',
     })
     if (!aiRes.ok) {
