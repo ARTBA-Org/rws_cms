@@ -267,53 +267,81 @@ export async function POST(request: NextRequest) {
     // Create slides and attach to module
     const slideIds: Array<number | string> = []
     let slidesCreated = 0
+
+    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms))
+    const withRetry = async <T>(op: () => Promise<T>, label: string, max = 3): Promise<T> => {
+      let lastErr: any
+      for (let i = 1; i <= max; i++) {
+        try {
+          return await op()
+        } catch (e) {
+          lastErr = e
+          // brief backoff to survive transient DB disconnects in Amplify
+          await sleep(250 * i)
+        }
+      }
+      throw new Error(`${label} failed after ${max} attempts: ${lastErr?.message || lastErr}`)
+    }
     for (const img of images) {
       try {
         const imgRes = await fetch(img.url, { cache: 'no-store' })
         if (!imgRes.ok) continue
         const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
 
-        const mediaImage = await payload.create({
-          collection: 'media',
-          data: { alt: `Page ${img.page} from ${mediaDoc.filename || 'document.pdf'}` },
-          file: {
-            data: imgBuffer,
-            mimetype: 'image/png',
-            name: `${(mediaDoc.filename || 'document').replace(/\.pdf$/i, '')}_page_${img.page}.png`,
-            size: imgBuffer.length,
-          },
-          overrideAccess: true,
-          depth: 0,
-        })
+        const mediaImage = await withRetry(
+          () =>
+            payload.create({
+              collection: 'media',
+              data: { alt: `Page ${img.page} from ${mediaDoc.filename || 'document.pdf'}` },
+              file: {
+                data: imgBuffer,
+                mimetype: 'image/png',
+                name: `${(mediaDoc.filename || 'document').replace(/\.pdf$/i, '')}_page_${img.page}.png`,
+                size: imgBuffer.length,
+              },
+              overrideAccess: true,
+              depth: 0,
+            }),
+          'media.create',
+        )
 
         const analysis = pageToAnalysis.get(img.page) || normalize(null)
-        const slide = await payload.create({
-          collection: 'slides',
-          data: {
-            title:
-              analysis.title ||
-              `${(mediaDoc.filename || 'document').replace(/\.pdf$/i, '')} - Page ${img.page}`,
-            description:
-              analysis.summary ||
-              (analysis.key_points?.length
-                ? `Key points:\n- ${analysis.key_points.join('\n- ')}`
-                : `Page ${img.page} from ${mediaDoc.filename || 'document.pdf'}`),
-            type: 'regular',
-            image: mediaImage.id,
-            urls: [],
-          },
-          overrideAccess: true,
-          depth: 0,
-        })
+        const slide = await withRetry(
+          () =>
+            payload.create({
+              collection: 'slides',
+              data: {
+                title:
+                  analysis.title ||
+                  `${(mediaDoc.filename || 'document').replace(/\.pdf$/i, '')} - Page ${img.page}`,
+                description:
+                  analysis.summary ||
+                  (analysis.key_points?.length
+                    ? `Key points:\n- ${analysis.key_points.join('\n- ')}`
+                    : `Page ${img.page} from ${mediaDoc.filename || 'document.pdf'}`),
+                type: 'regular',
+                image: mediaImage.id,
+                urls: [],
+              },
+              overrideAccess: true,
+              depth: 0,
+            }),
+          'slides.create',
+        )
         slideIds.push(slide.id)
         slidesCreated++
+        // small delay to avoid hammering DB pool in Amplify
+        await sleep(100)
       } catch (err) {
         // Continue other pages
       }
     }
 
     // Replace module.slides (do not append)
-    const currentModule = await payload.findByID({ collection: 'modules', id: String(moduleId) })
+    const currentModule = await withRetry(
+      () => payload.findByID({ collection: 'modules', id: String(moduleId), overrideAccess: true }),
+      'modules.findByID',
+    )
     const previousSlides = (currentModule as any).slides || []
     await payload.update({
       collection: 'modules',
