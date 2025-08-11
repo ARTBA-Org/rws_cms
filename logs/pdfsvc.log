@@ -502,3 +502,4 @@ INFO:     Finished server process [82475]
 INFO:     Started server process [85912]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+INFO:     192.168.1.1:38146 - "GET / HTTP/1.1" 200 OK
