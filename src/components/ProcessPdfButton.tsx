@@ -145,7 +145,7 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
         if (nextStartPage && totalPages) {
           setMessage(`${message} ⏭️ Processing remaining pages in batches...`)
           let current = nextStartPage
-          const batchSize = 3
+          const batchSize = 2
           while (current && current <= totalPages) {
             try {
               const r = await fetch('/api/process-module-pdf', {

@@ -7,7 +7,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const moduleId = body.moduleId
     const startPage: number = Math.max(1, Number(body.startPage || 1))
-    const batchSize: number = Math.max(1, Math.min(10, Number(body.batchSize || 1)))
+    // Cap batch size conservatively to keep each request < 30s on Amplify
+    const batchSize: number = Math.max(1, Math.min(2, Number(body.batchSize || 1)))
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
     }
