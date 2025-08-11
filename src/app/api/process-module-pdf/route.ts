@@ -4,7 +4,10 @@ import config from '../../../payload.config'
 
 export async function POST(request: NextRequest) {
   try {
-    const { moduleId } = await request.json()
+    const body = await request.json()
+    const moduleId = body.moduleId
+    const startPage: number = Math.max(1, Number(body.startPage || 1))
+    const batchSize: number = Math.max(1, Math.min(10, Number(body.batchSize || 1)))
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
     }
@@ -116,16 +119,17 @@ export async function POST(request: NextRequest) {
     }
     const convert = await convRes.json()
     const images: Array<{ page: number; key: string; url: string }> = convert.images || []
-    // Fast mode: only process first page end-to-end to avoid Amplify 28s timeout
-    const fastFirstPageOnly = true
-    const imagesToProcess = fastFirstPageOnly ? images.slice(0, 1) : images
+    const totalPages = images.length
+    // Batched mode: only process requested slice to stay under Amplify 28s limit
+    const startIdx = Math.max(0, startPage - 1)
+    const endIdx = Math.min(totalPages, startIdx + batchSize)
+    const imagesToProcess = images.slice(startIdx, endIdx)
 
-    // 4) AI analysis (first page only to avoid timeout)
+    // 4) AI analysis (batched)
     const aiRes = await fetch(`${apiBase}/process-from-s3`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Process only first page for quick response
-      body: JSON.stringify({ payload: { key, max_pages: 1, debug: true } }),
+      body: JSON.stringify({ payload: { key, start_page: startPage, max_pages: batchSize, debug: true } }),
       cache: 'no-store',
     })
     if (!aiRes.ok) {
@@ -340,16 +344,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Replace module.slides (do not append)
+    // Replace on first batch; append for subsequent batches
     const currentModule = await withRetry(
       () => payload.findByID({ collection: 'modules', id: String(moduleId), overrideAccess: true }),
       'modules.findByID',
     )
     const previousSlides = (currentModule as any).slides || []
+    const nextSlides = startPage <= 1 ? (slideIds as any) : ([...previousSlides, ...slideIds] as any)
     await payload.update({
       collection: 'modules',
       id: String(moduleId),
-      data: { slides: slideIds as any },
+      data: { slides: nextSlides },
       overrideAccess: true,
       depth: 0,
     })
@@ -359,7 +364,11 @@ export async function POST(request: NextRequest) {
         success: true,
         slidesCreated,
         page_count: convert.page_count || images.length,
-        replacedSlides: previousSlides.length,
+        replacedSlides: startPage <= 1 ? previousSlides.length : 0,
+        totalPages,
+        processed: imagesToProcess.map((i) => i.page),
+        nextStartPage: endIdx < totalPages ? endIdx + 1 : null,
+        batchSize,
       },
       { status: 200 },
     )

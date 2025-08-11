@@ -110,7 +110,7 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ moduleId }),
+        body: JSON.stringify({ moduleId, startPage: 1, batchSize: 1 }),
         signal: controller.signal,
       })
 
@@ -139,13 +139,34 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
           message += ` 🤖 AI analyzed: ${typesSummary}.`
         }
 
-        message += ' Refresh the page to see them.'
-        setMessage(message)
-
-        // Auto-refresh after 4 seconds (longer to read AI summary)
-        setTimeout(() => {
-          window.location.reload()
-        }, 4000)
+        // If there are more pages, kick off batch processing in the background
+        const nextStartPage = result.result?.nextStartPage || result.nextStartPage
+        const totalPages = result.result?.totalPages || result.totalPages
+        if (nextStartPage && totalPages) {
+          setMessage(`${message} ⏭️ Processing remaining pages in batches...`)
+          let current = nextStartPage
+          const batchSize = 3
+          while (current && current <= totalPages) {
+            try {
+              const r = await fetch('/api/process-module-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ moduleId, startPage: current, batchSize }),
+              })
+              const j = await r.json()
+              console.log('Batch processed', { current, j })
+              current = j.nextStartPage
+              setMessage(`✅ Processed up to page ${Math.min(current ? current - 1 : totalPages, totalPages)} of ${totalPages}.`)
+            } catch (e) {
+              console.error('Batch error', e)
+              break
+            }
+          }
+          setMessage(`✅ All pages processed. Refresh to see new slides.`)
+        } else {
+          message += ' Refresh the page to see them.'
+          setMessage(message)
+        }
       } else {
         setMessage(`❌ Error: ${result.error || 'Processing failed'}`)
         console.error('❌ Processing failed:', result)
