@@ -156,7 +156,9 @@ export default function ProcessPdfButton(props: ProcessPdfButtonProps) {
               const j = await r.json()
               console.log('Batch processed', { current, j })
               current = j.nextStartPage
-              setMessage(`✅ Processed up to page ${Math.min(current ? current - 1 : totalPages, totalPages)} of ${totalPages}.`)
+              setMessage(
+                `✅ Processed up to page ${Math.min(current ? current - 1 : totalPages, totalPages)} of ${totalPages}.`,
+              )
             } catch (e) {
               console.error('Batch error', e)
               break

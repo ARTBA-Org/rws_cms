@@ -119,18 +119,22 @@ export async function POST(request: NextRequest) {
       )
     }
     const convert = await convRes.json()
+    console.log('[process-module-pdf] module', moduleId, 'startPage', startPage, 'batchSize', batchSize)
     const images: Array<{ page: number; key: string; url: string }> = convert.images || []
     const totalPages = images.length
     // Batched mode: only process requested slice to stay under Amplify 28s limit
     const startIdx = Math.max(0, startPage - 1)
     const endIdx = Math.min(totalPages, startIdx + batchSize)
     const imagesToProcess = images.slice(startIdx, endIdx)
+    console.log('[process-module-pdf] totalPages', totalPages, 'processing pages', imagesToProcess.map(i=>i.page))
 
     // 4) AI analysis (batched)
     const aiRes = await fetch(`${apiBase}/process-from-s3`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payload: { key, start_page: startPage, max_pages: batchSize, debug: true } }),
+      body: JSON.stringify({
+        payload: { key, start_page: startPage, max_pages: batchSize, debug: true },
+      }),
       cache: 'no-store',
     })
     if (!aiRes.ok) {
@@ -142,6 +146,7 @@ export async function POST(request: NextRequest) {
     }
     const ai = await aiRes.json()
     const results: Array<{ page: number; analysis: any }> = ai.results || []
+    console.log('[process-module-pdf] ai pages', results.map(r=>r.page))
 
     // Normalize AI analysis into structured fields
     const stripCodeFences = (text: string) =>
@@ -351,7 +356,8 @@ export async function POST(request: NextRequest) {
       'modules.findByID',
     )
     const previousSlides = (currentModule as any).slides || []
-    const nextSlides = startPage <= 1 ? (slideIds as any) : ([...previousSlides, ...slideIds] as any)
+    const nextSlides =
+      startPage <= 1 ? (slideIds as any) : ([...previousSlides, ...slideIds] as any)
     await payload.update({
       collection: 'modules',
       id: String(moduleId),
