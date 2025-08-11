@@ -29,7 +29,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Strictly use DeployIt Lambda API
-    const apiBase = process.env.PDF_PROCESSOR_API_URL
+    const apiBase =
+      process.env.PDF_PROCESSOR_API_URL ||
+      process.env.NEXT_PUBLIC_PDF_PROCESSOR_API_URL ||
+      process.env.PAYLOAD_PUBLIC_PDF_PROCESSOR_API_URL ||
+      'https://t9xzxhl1ed.execute-api.us-east-1.amazonaws.com/Prod'
     if (!apiBase) {
       return NextResponse.json(
         { error: 'PDF_PROCESSOR_API_URL is not configured' },
