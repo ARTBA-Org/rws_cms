@@ -116,6 +116,9 @@ export async function POST(request: NextRequest) {
     }
     const convert = await convRes.json()
     const images: Array<{ page: number; key: string; url: string }> = convert.images || []
+    // Fast mode: only process first page end-to-end to avoid Amplify 28s timeout
+    const fastFirstPageOnly = true
+    const imagesToProcess = fastFirstPageOnly ? images.slice(0, 1) : images
 
     // 4) AI analysis (first page only to avoid timeout)
     const aiRes = await fetch(`${apiBase}/process-from-s3`, {
@@ -282,7 +285,7 @@ export async function POST(request: NextRequest) {
       }
       throw new Error(`${label} failed after ${max} attempts: ${lastErr?.message || lastErr}`)
     }
-    for (const img of images) {
+    for (const img of imagesToProcess) {
       try {
         const imgRes = await fetch(img.url, { cache: 'no-store' })
         if (!imgRes.ok) continue
