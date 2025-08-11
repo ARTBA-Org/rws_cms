@@ -111,8 +111,8 @@ export async function POST(request: NextRequest) {
     const aiRes = await fetch(`${apiBase}/process-from-s3`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // Process only first page synchronously to stay under API Gateway's 29s limit
-      body: JSON.stringify({ payload: { key, max_pages: 1, debug: true } }),
+      // Process all pages
+      body: JSON.stringify({ payload: { key, max_pages: 0, debug: true } }),
       cache: 'no-store',
     })
     if (!aiRes.ok) {
