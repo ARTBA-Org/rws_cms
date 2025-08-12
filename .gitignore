@@ -110,4 +110,4 @@ sam-deploy/
 cache/
 
 # Webpack cache
-.cache/
+.cache/sam-deploy/
