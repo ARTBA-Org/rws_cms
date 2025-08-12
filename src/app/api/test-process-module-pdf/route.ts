@@ -72,39 +72,62 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log('📋 Loading media document...')
     const mediaDoc: any = await payload.findByID({
       collection: 'media',
       id: String(effectiveMediaId),
     })
     if (!mediaDoc?.url) {
+      console.error('❌ Media file has no accessible URL')
       return NextResponse.json({ error: 'Media file has no accessible URL' }, { status: 400 })
     }
+    console.log('✅ Media document loaded:', {
+      id: mediaDoc.id,
+      filename: mediaDoc.filename,
+      url: mediaDoc.url,
+      mimeType: mediaDoc.mimeType,
+    })
 
     const SERVER_ORIGIN =
       process.env.PAYLOAD_PUBLIC_SERVER_URL || `http://localhost:${process.env.PORT || 3001}`
     const absoluteUrl = mediaDoc.url.startsWith('http')
       ? mediaDoc.url
       : `${SERVER_ORIGIN}${mediaDoc.url}`
-
+    
+    console.log('📋 Fetching PDF from URL:', absoluteUrl)
+    console.log('📋 Server origin:', SERVER_ORIGIN)
+    
     const cookie = request.headers.get('cookie') || ''
     const res = await fetch(absoluteUrl, { headers: cookie ? { cookie } : undefined })
     if (!res.ok) {
+      console.error(`❌ Failed to fetch PDF: ${res.status} ${res.statusText}`)
+      console.error('URL attempted:', absoluteUrl)
       return NextResponse.json(
-        { error: `Failed to fetch PDF: ${res.status} ${res.statusText}` },
+        { error: `Failed to fetch PDF: ${res.status} ${res.statusText}`, url: absoluteUrl },
         { status: 502 },
       )
     }
+    console.log('✅ PDF fetched successfully, size:', res.headers.get('content-length'))
 
     const ab = await res.arrayBuffer()
     const pdfBuffer = Buffer.from(ab)
+    console.log('✅ PDF buffer created, size:', pdfBuffer.length)
 
+    console.log('📋 Importing PDFProcessor...')
     const { PDFProcessor } = await import('../../../utils/pdfProcessorWorking')
+    console.log('✅ PDFProcessor imported successfully')
+    
+    console.log('📋 Creating PDFProcessor instance...')
     const processor = new PDFProcessor()
+    console.log('✅ PDFProcessor instance created')
+    
+    console.log('📋 Starting PDF processing...')
     const result = await processor.processPDFToSlides(
       pdfBuffer,
       String(moduleId),
       mediaDoc.filename || 'uploaded.pdf',
     )
+    console.log('✅ PDF processing completed:', result)
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 })
   } catch (e: any) {
