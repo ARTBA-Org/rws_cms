@@ -18,6 +18,7 @@ const nextConfig = {
   // Add environment variables for client-side
   env: {
     PAYLOAD_PUBLIC_SERVER_URL: process.env.PAYLOAD_PUBLIC_SERVER_URL,
+    NEXT_PUBLIC_ENVIRONMENT: process.env.NODE_ENV,
   },
   // Moved from experimental to root level
   serverExternalPackages: ['sharp', 'payload-plugin-algolia'],

@@ -1,0 +1,114 @@
+---
+description: Development workflow and best practices for this Payload CMS project
+alwaysApply: true
+---
+
+# Development Workflow & Best Practices
+
+## Project Stack
+
+- **Framework**: Next.js 15.4.5 (App Router)
+- **CMS**: Payload CMS 3.50.0
+- **Database**: PostgreSQL with connection pooling
+- **Language**: TypeScript 5.9.2
+- **Storage**: S3-compatible (configurable)
+- **Search**: Algolia (optional)
+- **Package Manager**: npm (with legacy-peer-deps for compatibility)
+
+## Development Commands
+
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Generate TypeScript types (run after collection changes)
+npm run generate:types
+
+# Generate import map (rarely needed)
+npm run generate:importmap
+
+# Access Payload CLI
+npm run payload
+
+# Linting
+npm run lint
+```
+
+## Development Best Practices
+
+### 1. Environment Setup
+- Copy `.env.example` to `.env` for local development
+- Ensure required environment variables are set before starting
+- Use different databases for development/production
+
+### 2. Collection Development
+- Define collections in [src/collections/](mdc:src/collections/)
+- Run `npm run generate:types` after field changes
+- Test admin interface after modifications
+- Verify API endpoints work as expected
+
+### 3. Database Migrations
+- Payload handles schema migrations automatically
+- Always backup production database before updates
+- Test schema changes in development first
+
+### 4. Plugin Development
+- Plugins load conditionally based on environment variables
+- Test with and without optional services (S3, Algolia)
+- Handle missing environment variables gracefully
+
+### 5. Error Handling
+- Use proper TypeScript error handling patterns
+- Log errors with context for debugging
+- Implement graceful degradation for optional services
+
+## Testing Workflow
+
+### After Updates
+1. Run `npm run build` to verify compilation
+2. Start dev server with `npm run dev`
+3. Test admin panel at `/admin`
+4. Verify API endpoints work
+5. Test collection CRUD operations
+
+### Before Deployment
+1. Ensure all environment variables are set
+2. Run production build locally
+3. Test database connectivity
+4. Verify external service integrations (S3, Algolia)
+
+## Common Issues & Solutions
+
+### Port Conflicts
+- Next.js automatically finds available port if 3000 is busy
+- Check terminal output for actual port being used
+
+### TypeScript Errors
+- Regenerate types with `npm run generate:types`
+- Clear `.next` cache if needed: `rm -rf .next`
+
+### Database Connection Issues
+- Verify DATABASE_URI format and credentials
+- Check SSL settings in PostgreSQL configuration
+- Ensure database exists and is accessible
+
+### Plugin Issues
+- Check environment variables are properly set
+- Review console for plugin loading warnings
+- Verify plugin-specific configurations
+
+## File Organization
+
+```
+src/
+├── app/                    # Next.js routes
+├── collections/           # Payload collections (one file per collection)
+├── hooks/                 # Custom Payload hooks
+├── payload.config.ts      # Main configuration
+└── payload-types.ts       # Generated types (don't edit manually)
+```
+
+Keep related functionality grouped together and follow the established patterns in existing files.

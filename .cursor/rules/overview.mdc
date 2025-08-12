@@ -1,0 +1,53 @@
+---
+description: RWS CMS Project Overview - Payload CMS with Next.js
+alwaysApply: true
+---
+
+# RWS CMS - Payload CMS Project Overview
+
+## Project Description
+
+This is a **course management system** built with Payload CMS 3.50.0 and Next.js 15.4.5. It manages educational content including courses, modules, and slides with integrated search and media management.
+
+## Tech Stack
+
+- **CMS/Backend**: Payload CMS 3.50.0
+- **Frontend**: Next.js 15.4.5 (App Router)
+- **Language**: TypeScript 5.9.2 
+- **Database**: PostgreSQL
+- **Storage**: S3-compatible storage
+- **Search**: Algolia (optional)
+- **Rich Text**: Lexical Editor
+
+## Core Collections
+
+- **Courses**: Main course entities with learning objectives
+- **Modules**: Course sections containing multiple slides
+- **Slides**: Individual presentation slides with various types
+- **Media**: File uploads and assets
+- **Users**: Authentication and user management
+
+## Key Features
+
+- Unified admin panel at `/admin`
+- Auto-generated REST and GraphQL APIs
+- Advanced search integration with Algolia
+- S3-compatible file storage
+- Rich text editing with Lexical
+- Type-safe development with generated TypeScript types
+
+## Development Guidelines
+
+- Use TypeScript for all new code
+- Follow 2-space indentation with semicolons
+- Use double quotes for strings
+- Regenerate types after collection changes
+- Handle optional services gracefully
+- Implement proper error handling with logging
+
+## Architecture Principles
+
+- Configuration-first approach via [payload.config.ts](mdc:src/payload.config.ts)
+- Conditional plugin loading based on environment variables  
+- Proper separation between admin interface and public API
+- Type safety throughout the application stack

@@ -5,6 +5,18 @@ import type { FieldProps } from 'payload/components/forms'
 export default function ProcessPdfOnPick(props: FieldProps) {
   const { value, onChange } = props
   const [busy, setBusy] = useState(false)
+
+  // Detect production environment more reliably
+  const isProduction = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    // Check if we're on an amplifyapp.com domain (production) or use the public env var
+    return (
+      window.location.hostname.includes('amplifyapp.com') ||
+      window.location.hostname.includes('cloudfront.net') ||
+      process.env.NEXT_PUBLIC_ENVIRONMENT === 'production'
+    )
+  }, [])
+
   const moduleId = useMemo(() => {
     if (typeof window === 'undefined') return undefined
     const match = window.location.pathname.match(/\/admin\/collections\/modules\/(.+)$/)
@@ -18,7 +30,7 @@ export default function ProcessPdfOnPick(props: FieldProps) {
     onChange?.(val)
 
     // Check if we're in production
-    if (process.env.NODE_ENV === 'production') {
+    if (isProduction) {
       console.warn('PDF processing is disabled in production environment')
       return
     }
@@ -55,17 +67,17 @@ export default function ProcessPdfOnPick(props: FieldProps) {
         />
       )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-        {process.env.NODE_ENV === 'production' ? (
+        {isProduction ? (
           <div
             style={{
               padding: '6px 10px',
               borderRadius: 6,
-              background: '#f59e0b',
+              background: '#6b7280',
               color: 'white',
               fontSize: '12px',
             }}
           >
-            ❌ Error: Disabled in production
+            ℹ️ PDF processing unavailable in production
           </div>
         ) : (
           <button
@@ -84,9 +96,9 @@ export default function ProcessPdfOnPick(props: FieldProps) {
             {busy ? 'Starting…' : 'Create slides now'}
           </button>
         )}
-        <small>
-          {process.env.NODE_ENV === 'production'
-            ? 'PDF processing is disabled in production environment'
+        <small style={{ color: isProduction ? '#6b7280' : '#374151' }}>
+          {isProduction
+            ? 'PDF processing requires server-side dependencies not available in production'
             : 'Automatically triggers when you pick a PDF; or click to start.'}
         </small>
       </div>

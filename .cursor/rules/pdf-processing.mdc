@@ -1,0 +1,75 @@
+---
+description: PDF processing integration (Lambda/S3/OpenAI) and batching rules
+globs: src/app/api/process-module-pdf/route.ts,src/components/ProcessPdfButton.tsx,src/utils/*.ts
+---
+
+# PDF Processing Integration Rules
+
+## Overview
+
+This project integrates a Python FastAPI service (deployed on AWS Lambda behind API Gateway) to convert PDFs to images and run AI analysis per page. The Next.js route orchestrates S3 uploads, conversion, AI processing, and slide creation in Payload CMS.
+
+## Key Files
+
+- API Orchestrator: [src/app/api/process-module-pdf/route.ts](mdc:src/app/api/process-module-pdf/route.ts)
+- Admin Trigger Button: [src/components/ProcessPdfButton.tsx](mdc:src/components/ProcessPdfButton.tsx)
+- Utility processors (legacy/alt): [src/utils/](mdc:src/utils/)
+
+## Environment Variables
+
+The API base URL is resolved in this order (first truthy wins):
+
+1. `PDF_PROCESSOR_API_URL`
+2. `NEXT_PUBLIC_PDF_PROCESSOR_API_URL`
+3. `PAYLOAD_PUBLIC_PDF_PROCESSOR_API_URL`
+
+Ensure `.env` contains the correct value for your deployment. Large files are uploaded via presigned S3 URLs issued by the Lambda service.
+
+## Batching Protocol
+
+- The first request should process page 1 to give fast feedback.
+- Subsequent requests pass `startPage` and `batchSize` to process small batches (default 2) to stay under 30s limits in Amplify and API Gateway.
+- The client loops until `nextStartPage` is `null`.
+
+### Client Behavior
+
+- Use an `AbortController` timeout (~25s) to avoid hanging requests in the admin UI.
+- Update progress with the range being processed and the high-water mark.
+
+### Server Behavior
+
+- Orchestrates:
+  1. Fetch PDF binary via Payload local API (overrideAccess: true)
+  2. Request presigned upload, PUT to S3
+  3. Call `/convert-from-s3` → returns `images` with pages and URLs
+  4. Slice `images` for batch; call `/process-from-s3` with `start_page` and `max_pages`
+  5. Create `media` and `slides` with retries and small sleeps to avoid DB pool thrash
+- Replace module slides on the first batch; append for follow-up batches.
+
+## AI Result Normalization
+
+- Normalize function aggressively extracts JSON from arbitrary model outputs:
+  - Strips code-fences and preambles
+  - Maps `main_points` → `key_points`, `facts` → `data_points`, etc.
+  - Falls back to a readable `summary` if no JSON present
+
+## Page Mapping Robustness
+
+- Some Lambda responses number pages relative to the batch (1..N).
+- Fallback aligns results by index against requested `imagesToProcess` when page labels don’t match.
+
+## Slide Type Inference
+
+- Slide `type` is inferred from AI text when not explicit:
+  - quiz/question/true-false/multiple choice → `quiz`
+  - reference/references/citation → `reference`
+  - video/watch → `video`
+  - resource(s)/reading → `resources`
+  - default → `regular`
+
+## Reliability Patterns
+
+- Use `withRetry` for Payload DB ops with exponential backoff.
+- Insert small `sleep(100)` between slide creations in Amplify to avoid PG pool saturation.
+- Prefer `overrideAccess: true` and `depth: 0` for internal server operations.
+

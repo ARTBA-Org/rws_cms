@@ -1,0 +1,153 @@
+---
+description: TypeScript patterns and API usage for Payload CMS
+globs: *.ts,*.tsx
+---
+
+# TypeScript & API Patterns
+
+## Type Generation
+
+Payload automatically generates TypeScript types in [payload-types.ts](mdc:src/payload-types.ts):
+
+```bash
+npm run generate:types
+```
+
+Always regenerate types after:
+- Adding/modifying collection fields
+- Changing collection configurations
+- Updating Payload version
+
+## Payload Local API Usage
+
+### Getting Payload Instance
+```typescript
+import { getPayload } from 'payload'
+import config from '@/payload.config'
+
+const payload = await getPayload({ config })
+```
+
+### Common Query Patterns
+```typescript
+// Find documents
+const courses = await payload.find({
+  collection: 'courses',
+  limit: 10,
+  where: {
+    title: {
+      like: 'React',
+    },
+  },
+})
+
+// Find by ID
+const course = await payload.findByID({
+  collection: 'courses',
+  id: '123',
+  depth: 2, // Include relationships
+})
+
+// Create document
+const newCourse = await payload.create({
+  collection: 'courses',
+  data: {
+    title: 'New Course',
+    description: 'Course description',
+  },
+})
+
+// Update document
+const updatedCourse = await payload.update({
+  collection: 'courses',
+  id: '123',
+  data: {
+    title: 'Updated Title',
+  },
+})
+```
+
+## Custom Hook Patterns
+
+### Collection Hooks
+Located in [src/hooks/](mdc:src/hooks/):
+
+```typescript
+import type { CollectionAfterChangeHook } from 'payload'
+
+export const afterChangeHook: CollectionAfterChangeHook = async ({
+  doc,
+  req,
+  previousDoc,
+  operation,
+}) => {
+  // Custom logic after document changes
+}
+```
+
+### Search Sync Hook
+The enhanced Algolia sync hook in [src/hooks/enhancedAlgoliaSync.ts](mdc:src/hooks/enhancedAlgoliaSync.ts) handles:
+- Document indexing after changes
+- Error handling and retries
+- Custom attribute generation
+
+## Type Safety Patterns
+
+### Using Generated Types
+```typescript
+import type { Course, Module, Slide } from '@/payload-types'
+
+// Typed function parameters
+const processCourse = (course: Course): void => {
+  // course is fully typed
+}
+
+// Typed API responses
+const courses: Course[] = await payload.find({
+  collection: 'courses',
+})
+```
+
+### Custom Type Extensions
+```typescript
+// For custom search attributes
+type SearchAttributesArgs = {
+  doc: Record<string, unknown>
+  collection: { slug: string }
+}
+
+// For plugin configurations
+type AlgoliaSearchConfig = {
+  algolia: {
+    appId: string
+    apiKey: string
+    index: string
+  }
+  collections: string[]
+  waitForHook: boolean
+  generateSearchAttributes: (args: SearchAttributesArgs) => Record<string, unknown> | null
+}
+```
+
+## Error Handling Patterns
+
+### Graceful Degradation
+```typescript
+try {
+  // Algolia sync operation
+  const result = await syncWithAlgolia(doc)
+} catch (error) {
+  console.error('Algolia sync failed:', error instanceof Error ? error.message : String(error))
+  // Continue execution - don't break the main operation
+  return Promise.resolve()
+}
+```
+
+### Environment Validation
+```typescript
+// Type-safe environment variable access
+const requiredEnvVar = process.env.REQUIRED_VAR
+if (!requiredEnvVar) {
+  throw new Error('REQUIRED_VAR environment variable is required')
+}
+```
