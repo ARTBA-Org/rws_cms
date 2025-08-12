@@ -6,17 +6,16 @@ export default function ProcessPdfOnPick(props: FieldProps) {
   const { value, onChange } = props
   const [busy, setBusy] = useState(false)
 
-  // Hardcoded production detection - no environment variables
+  // Force production mode - always show production message unless explicitly localhost
   const isProduction = useMemo(() => {
-    if (typeof window === 'undefined') return true // Default to production on server
-    // Hardcoded domain detection for production
+    if (typeof window === 'undefined') return true // Always production on server
     const hostname = window.location.hostname.toLowerCase()
-    return (
-      hostname.includes('amplifyapp.com') ||
-      hostname.includes('cloudfront.net') ||
-      hostname.includes('amazonaws.com') ||
-      (!hostname.includes('localhost') && !hostname.includes('127.0.0.1'))
-    )
+    console.log('🔍 ProcessPdfOnPick hostname:', hostname)
+    // Only allow exact localhost matches as development
+    const isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1'
+    const production = !isDevelopment
+    console.log('🔍 ProcessPdfOnPick isProduction:', production)
+    return production
   }, [])
 
   const moduleId = useMemo(() => {
@@ -79,7 +78,7 @@ export default function ProcessPdfOnPick(props: FieldProps) {
               fontSize: '12px',
             }}
           >
-            ℹ️ PDF processing unavailable in production
+            ℹ️ PDF processing unavailable
           </div>
         ) : (
           <button
@@ -100,7 +99,7 @@ export default function ProcessPdfOnPick(props: FieldProps) {
         )}
         <small style={{ color: isProduction ? '#6b7280' : '#374151' }}>
           {isProduction
-            ? 'PDF processing requires server-side dependencies not available in production'
+            ? 'PDF processing requires server-side dependencies not available in deployed environments'
             : 'Automatically triggers when you pick a PDF; or click to start.'}
         </small>
       </div>

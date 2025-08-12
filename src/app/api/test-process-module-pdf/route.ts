@@ -4,8 +4,22 @@ import config from '../../../payload.config'
 
 // Dev-only helper to trigger PDF→Slides using the Local API
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Disabled in production' }, { status: 403 })
+  // Hardcoded production check - always disable in deployed environments
+  const host = request.headers.get('host') || ''
+  const isProduction =
+    host.includes('amplifyapp.com') ||
+    host.includes('cloudfront.net') ||
+    host.includes('amazonaws.com') ||
+    (!host.includes('localhost') && !host.includes('127.0.0.1'))
+
+  if (isProduction) {
+    return NextResponse.json(
+      {
+        error: 'PDF processing unavailable in deployed environments',
+        message: 'This feature requires server-side dependencies not available in production',
+      },
+      { status: 503 },
+    )
   }
 
   try {
