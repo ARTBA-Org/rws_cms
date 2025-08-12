@@ -276,3 +276,8 @@
 [dev]  ✓ Compiled in 2.8s (5215 modules)
 [dev]  ✓ Compiled in 2.3s (5215 modules)
 [dev]  ✓ Compiled in 739ms (5215 modules)
+[dev]  ✓ Compiled in 5.4s (4056 modules)
+[dev]  ○ Compiling /_not-found ...
+[dev]  ✓ Compiled /_not-found in 1402ms (5222 modules)
+[dev]  GET /sse 404 in 1922ms
+[dev]  GET /sse 404 in 773ms
