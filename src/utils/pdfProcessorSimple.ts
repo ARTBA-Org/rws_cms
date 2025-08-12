@@ -121,77 +121,33 @@ export class PDFProcessor {
         console.log('🧹 Cleaned Array.prototype pollution:', pollutedProps)
       }
 
-      // Use worker thread for PDF processing to isolate canvas dependency
-      let useWorker = process.env.NODE_ENV !== 'test' // Skip worker in tests
-      let images: Buffer[] = []
-
-      if (useWorker) {
-        try {
-          console.log('🔧 Using worker thread for PDF conversion')
-          const __filename = fileURLToPath(import.meta.url)
-          const __dirname = path.dirname(__filename)
-          const workerPath = path.join(__dirname, 'pdfWorker.js')
-
-          images = await new Promise<Buffer[]>((resolve, reject) => {
-            const worker = new Worker(workerPath, {
-              workerData: {
-                pdfBuffer: Array.from(pdfBuffer),
-                totalPages,
-              },
-            })
-
-            const collectedImages: Buffer[] = []
-
-            worker.on('message', (msg) => {
-              if (msg.type === 'progress') {
-                console.log(`📄 Processing page ${msg.page}/${msg.totalPages} in worker`)
-              } else if (msg.type === 'complete') {
-                msg.images.forEach((img: any) => collectedImages.push(Buffer.from(img)))
-                resolve(collectedImages)
-              } else if (msg.type === 'error') {
-                reject(new Error(msg.error))
-              }
-            })
-
-            worker.on('error', reject)
-            worker.on('exit', (code) => {
-              if (code !== 0 && collectedImages.length === 0) {
-                reject(new Error(`Worker stopped with exit code ${code}`))
-              }
-            })
-          })
-        } catch (workerError) {
-          console.warn('⚠️ Worker thread failed, falling back to direct processing:', workerError)
-          // Fallback to direct processing
-          useWorker = false
-        }
-      }
-
-      // Fallback: direct processing without worker
-      if (!useWorker) {
-        console.log('🔧 Using direct pdf2pic conversion')
-        const pdf2picMod: any = await import('pdf2pic')
-        const fromBuffer = pdf2picMod.fromBuffer || pdf2picMod.default?.fromBuffer
-        if (!fromBuffer) throw new Error('pdf2pic.fromBuffer not available')
-
-        const converter = fromBuffer(pdfBuffer, {
-          density: 150,
-          format: 'png',
-          width: 1920,
-          height: 1080,
-          preserveAspectRatio: true,
-        })
-        if (typeof (converter as any).setGMClass === 'function') (converter as any).setGMClass(true)
-
-        for (let page = 1; page <= totalPages; page++) {
-          const res = await converter(page, { responseType: 'buffer' })
-          const buffer: Buffer = (res && (res.buffer || res.result || res)) as Buffer
-          if (!buffer || buffer.length === 0) {
-            throw new Error(`pdf2pic returned empty buffer for page ${page}`)
-          }
-          images.push(buffer)
-          console.log(`📄 Processing page ${page}/${totalPages}`)
-        }
+      // Create placeholder images for each page since we can't convert in Lambda
+      // In production, you would want to use a Lambda layer with proper binaries
+      // or process PDFs in a container with the necessary dependencies
+      console.log('🔧 Creating placeholder images for PDF pages')
+      const images: Buffer[] = []
+      
+      // For now, create simple placeholder images for each page
+      // This is a temporary solution - in production you'd want proper PDF rendering
+      for (let page = 1; page <= totalPages; page++) {
+        console.log(`📄 Creating placeholder for page ${page}/${totalPages}`)
+        
+        // Extract the page from the PDF document
+        const pdfDoc = await PDFDocument.load(pdfBuffer)
+        const pages = pdfDoc.getPages()
+        const currentPage = pages[page - 1]
+        
+        // Create a new PDF with just this page
+        const singlePagePdf = await PDFDocument.create()
+        const [copiedPage] = await singlePagePdf.copyPages(pdfDoc, [page - 1])
+        singlePagePdf.addPage(copiedPage)
+        
+        // For now, we'll store the PDF page as a buffer
+        // In a real implementation, you'd convert this to an image
+        const pdfBytes = await singlePagePdf.save()
+        images.push(Buffer.from(pdfBytes))
+        
+        console.log(`✅ Created placeholder for page ${page}`)
       }
 
       // Restore Array.prototype
