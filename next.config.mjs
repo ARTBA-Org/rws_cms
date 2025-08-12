@@ -17,7 +17,6 @@ const nextConfig = {
   },
   // Add environment variables for client-side
   env: {
-    NODE_ENV: process.env.NODE_ENV,
     PAYLOAD_PUBLIC_SERVER_URL: process.env.PAYLOAD_PUBLIC_SERVER_URL,
   },
   // Moved from experimental to root level
