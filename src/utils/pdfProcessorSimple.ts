@@ -16,6 +16,27 @@ export interface PDFProcessResult {
   slideTypes?: string[]
 }
 
+// Simple progress tracker for logging
+class ProgressTracker {
+  private moduleId: string
+  
+  constructor(moduleId: string) {
+    this.moduleId = moduleId
+  }
+  
+  start() {
+    console.log(`📊 Starting progress tracking for module ${this.moduleId}`)
+  }
+  
+  addStep(message: string) {
+    console.log(message)
+  }
+  
+  complete(message: string) {
+    console.log(`✅ ${message}`)
+  }
+}
+
 export class PDFProcessor {
   /**
    * Process PDF and create slides for a module
