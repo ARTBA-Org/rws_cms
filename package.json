@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "cross-env NODE_OPTIONS=--no-deprecation next build",
+    "build": "cross-env NODE_OPTIONS=--no-deprecation NEXT_BUILD_SKIP_DB=true next build",
+    "build:production": "cross-env NODE_ENV=production NODE_OPTIONS=--no-deprecation NEXT_BUILD_SKIP_DB=true NEXT_TELEMETRY_DISABLED=1 next build",
     "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev",
     "devsafe": "rm -rf .next && cross-env NODE_OPTIONS=--no-deprecation next dev",
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",

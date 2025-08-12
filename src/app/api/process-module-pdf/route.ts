@@ -5,6 +5,19 @@ import { PDFProcessor } from '../../../utils/pdfProcessor'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if we're in production and PDF processing is disabled
+    if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_PDF_PROCESSING) {
+      return NextResponse.json(
+        {
+          error: 'PDF processing is disabled in production environment',
+          success: false,
+          message:
+            'This feature requires additional server-side dependencies that are not available in the current deployment environment.',
+        },
+        { status: 503 },
+      )
+    }
+
     const { moduleId } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })

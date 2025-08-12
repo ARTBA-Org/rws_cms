@@ -13,7 +13,12 @@ frontend:
     build:
       commands:
         - echo "Starting build process with database connection skipped"
-        - NEXT_BUILD_SKIP_DB=true NODE_OPTIONS=--no-warnings npm run build
+        - echo "Setting production environment variables"
+        - export NODE_ENV=production
+        - export NEXT_TELEMETRY_DISABLED=1
+        - export NEXT_BUILD_SKIP_DB=true
+        - echo "Building Next.js application"
+        - NODE_OPTIONS=--no-warnings npm run build
   artifacts:
     baseDirectory: .next
     files:

@@ -17,6 +17,12 @@ export default function ProcessPdfOnPick(props: FieldProps) {
   const handleChange = async (val: any) => {
     onChange?.(val)
 
+    // Check if we're in production
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('PDF processing is disabled in production environment')
+      return
+    }
+
     // Extract module ID from admin path if possible
     try {
       const pdfId = typeof val === 'object' ? (val as any)?.id : val
@@ -49,22 +55,40 @@ export default function ProcessPdfOnPick(props: FieldProps) {
         />
       )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-        <button
-          type="button"
-          disabled={busy || !moduleId || !value}
-          onClick={() => handleChange(value)}
-          style={{
-            padding: '6px 10px',
-            borderRadius: 6,
-            background: '#2563eb',
-            color: 'white',
-            border: 'none',
-            cursor: busy || !moduleId || !value ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {busy ? 'Starting…' : 'Create slides now'}
-        </button>
-        <small>Automatically triggers when you pick a PDF; or click to start.</small>
+        {process.env.NODE_ENV === 'production' ? (
+          <div
+            style={{
+              padding: '6px 10px',
+              borderRadius: 6,
+              background: '#f59e0b',
+              color: 'white',
+              fontSize: '12px',
+            }}
+          >
+            ❌ Error: Disabled in production
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={busy || !moduleId || !value}
+            onClick={() => handleChange(value)}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 6,
+              background: '#2563eb',
+              color: 'white',
+              border: 'none',
+              cursor: busy || !moduleId || !value ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {busy ? 'Starting…' : 'Create slides now'}
+          </button>
+        )}
+        <small>
+          {process.env.NODE_ENV === 'production'
+            ? 'PDF processing is disabled in production environment'
+            : 'Automatically triggers when you pick a PDF; or click to start.'}
+        </small>
       </div>
     </div>
   )
