@@ -6,13 +6,16 @@ export default function ProcessPdfOnPick(props: FieldProps) {
   const { value, onChange } = props
   const [busy, setBusy] = useState(false)
 
-  // Force production mode - always show production message unless explicitly localhost
+  // Allow PDF processing on localhost and Amplify environments
   const isProduction = useMemo(() => {
-    if (typeof window === 'undefined') return true // Always production on server
+    if (typeof window === 'undefined') return false // Allow on server
     const hostname = window.location.hostname.toLowerCase()
     console.log('🔍 ProcessPdfOnPick hostname:', hostname)
-    // Only allow exact localhost matches as development
-    const isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1'
+    // Allow localhost, 127.0.0.1, and Amplify environments
+    const isDevelopment = hostname === 'localhost' || 
+                         hostname === '127.0.0.1' || 
+                         hostname.includes('amplifyapp.com') ||
+                         hostname.includes('amazonaws.com')
     const production = !isDevelopment
     console.log('🔍 ProcessPdfOnPick isProduction:', production)
     return production

@@ -5,25 +5,8 @@ import { PDFProcessor } from '../../../utils/pdfProcessor'
 
 export async function POST(request: NextRequest) {
   try {
-    // Hardcoded production check - always disable PDF processing in deployed environments
-    const host = request.headers.get('host') || ''
-    const isProduction =
-      host.includes('amplifyapp.com') ||
-      host.includes('cloudfront.net') ||
-      host.includes('amazonaws.com') ||
-      (!host.includes('localhost') && !host.includes('127.0.0.1'))
-
-    if (isProduction) {
-      return NextResponse.json(
-        {
-          error: 'PDF processing is disabled in production environment',
-          success: false,
-          message:
-            'This feature requires additional server-side dependencies that are not available in the current deployment environment.',
-        },
-        { status: 503 },
-      )
-    }
+    // Allow PDF processing in all environments
+    // Removed production check - PDF processing is now available in deployed environments
 
     const { moduleId } = await request.json()
     if (!moduleId) {
