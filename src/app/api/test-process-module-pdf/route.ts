@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ PDF buffer created, size:', pdfBuffer.length)
 
     console.log('📋 Importing PDFProcessor...')
-    const { PDFProcessor } = await import('../../../utils/pdfProcessorWorking')
+    const { PDFProcessor } = await import('../../../utils/pdfProcessorSimple')
     console.log('✅ PDFProcessor imported successfully')
     
     console.log('📋 Creating PDFProcessor instance...')
