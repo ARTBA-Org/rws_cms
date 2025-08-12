@@ -1,10 +1,5 @@
 import OpenAI from 'openai'
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
 export interface SlideAnalysis {
   type: 'regular' | 'video' | 'quiz' | 'reference' | 'resources'
   title: string
@@ -13,6 +8,17 @@ export interface SlideAnalysis {
 }
 
 export class SlideAnalyzer {
+  private openai: OpenAI
+
+  constructor() {
+    // Initialize OpenAI client in constructor with proper environment variable handling
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not configured. Please set OPENAI_API_KEY environment variable.')
+    }
+    this.openai = new OpenAI({ apiKey })
+  }
+
   /**
    * Test method to verify JSON parsing works correctly
    */
@@ -54,7 +60,7 @@ export class SlideAnalyzer {
       const base64Image = imageBuffer.toString('base64')
       const imageUrl = `data:image/png;base64,${base64Image}`
 
-      const response = await openai.chat.completions.create({
+      const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {

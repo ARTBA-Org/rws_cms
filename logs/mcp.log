@@ -10,3 +10,6 @@
 {"level":"info","message":"StdioMcpServer initialized","service":"mcp-server","timestamp":"2025-08-12T13:08:49.631Z"}
 {"level":"info","message":"Starting MCP server with stdio transport","service":"mcp-server","timestamp":"2025-08-12T13:08:49.632Z"}
 {"level":"info","message":"MCP server started with stdio transport","service":"mcp-server","timestamp":"2025-08-12T13:08:49.632Z"}
+{"level":"info","message":"StdioMcpServer initialized","service":"mcp-server","timestamp":"2025-08-12T13:30:31.454Z"}
+{"level":"info","message":"Starting MCP server with stdio transport","service":"mcp-server","timestamp":"2025-08-12T13:30:31.454Z"}
+{"level":"info","message":"MCP server started with stdio transport","service":"mcp-server","timestamp":"2025-08-12T13:30:31.455Z"}

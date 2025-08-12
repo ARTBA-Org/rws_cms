@@ -181,21 +181,21 @@ export class PDFProcessor {
       // Create slides from processed images with AI analysis
       console.log(`🔄 Creating slides from ${images.length} processed pages...`)
 
-      // Initialize AI analyzer
-      const analyzer = new SlideAnalyzer()
-
-      // Prepare slides for batch analysis
-      const slidesForAnalysis = images.map((buffer, index) => ({
-        buffer,
-        pageNumber: index + 1,
-      }))
-
       // Analyze all slides with AI (if OpenAI API key is available)
       let analyses: any[] = []
       if (process.env.OPENAI_API_KEY) {
         console.log('🤖 Starting AI analysis of slides...')
         progress.addStep('🤖 Starting AI analysis of slides...')
         try {
+          // Initialize AI analyzer only when API key is available
+          const analyzer = new SlideAnalyzer()
+          
+          // Prepare slides for batch analysis
+          const slidesForAnalysis = images.map((buffer, index) => ({
+            buffer,
+            pageNumber: index + 1,
+          }))
+          
           analyses = await analyzer.analyzeSlides(slidesForAnalysis, pdfFilename)
           console.log(`✅ AI analysis complete for ${analyses.length} slides`)
           progress.addStep(`✅ AI analysis complete for ${analyses.length} slides`)
