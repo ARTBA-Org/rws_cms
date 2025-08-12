@@ -5,8 +5,15 @@ import { PDFProcessor } from '../../../utils/pdfProcessor'
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if we're in production and PDF processing is disabled
-    if (process.env.NODE_ENV === 'production' && !process.env.ENABLE_PDF_PROCESSING) {
+    // Hardcoded production check - always disable PDF processing in deployed environments
+    const host = request.headers.get('host') || ''
+    const isProduction =
+      host.includes('amplifyapp.com') ||
+      host.includes('cloudfront.net') ||
+      host.includes('amazonaws.com') ||
+      (!host.includes('localhost') && !host.includes('127.0.0.1'))
+
+    if (isProduction) {
       return NextResponse.json(
         {
           error: 'PDF processing is disabled in production environment',

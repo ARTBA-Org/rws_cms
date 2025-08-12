@@ -37,7 +37,15 @@ export default function TestPage() {
         <h3>Environment Information</h3>
         <ul>
           <li>
-            <strong>Environment:</strong> {process.env.NODE_ENV || 'development'}
+            <strong>Environment:</strong>{' '}
+            {typeof window !== 'undefined' &&
+            (window.location.hostname.includes('amplifyapp.com') ||
+              window.location.hostname.includes('cloudfront.net') ||
+              window.location.hostname.includes('amazonaws.com') ||
+              (!window.location.hostname.includes('localhost') &&
+                !window.location.hostname.includes('127.0.0.1')))
+              ? 'production'
+              : 'development'}
           </li>
           <li>
             <strong>Build Time:</strong> {new Date().toISOString()}

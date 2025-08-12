@@ -47,8 +47,15 @@ export default function PDFImportPage() {
     })
 
     try {
-      // Check if we're in production and show appropriate message
-      if (process.env.NODE_ENV === 'production') {
+      // Hardcoded production check
+      const isProduction =
+        window.location.hostname.includes('amplifyapp.com') ||
+        window.location.hostname.includes('cloudfront.net') ||
+        window.location.hostname.includes('amazonaws.com') ||
+        (!window.location.hostname.includes('localhost') &&
+          !window.location.hostname.includes('127.0.0.1'))
+
+      if (isProduction) {
         setStatus({
           isProcessing: false,
           progress: 0,
@@ -257,7 +264,11 @@ export default function PDFImportPage() {
         )}
       </div>
 
-      {process.env.NODE_ENV === 'production' && (
+      {(window.location.hostname.includes('amplifyapp.com') ||
+        window.location.hostname.includes('cloudfront.net') ||
+        window.location.hostname.includes('amazonaws.com') ||
+        (!window.location.hostname.includes('localhost') &&
+          !window.location.hostname.includes('127.0.0.1'))) && (
         <div
           style={{
             marginTop: '20px',

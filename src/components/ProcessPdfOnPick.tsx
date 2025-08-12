@@ -6,14 +6,16 @@ export default function ProcessPdfOnPick(props: FieldProps) {
   const { value, onChange } = props
   const [busy, setBusy] = useState(false)
 
-  // Detect production environment more reliably
+  // Hardcoded production detection - no environment variables
   const isProduction = useMemo(() => {
-    if (typeof window === 'undefined') return false
-    // Check if we're on an amplifyapp.com domain (production) or use the public env var
+    if (typeof window === 'undefined') return true // Default to production on server
+    // Hardcoded domain detection for production
+    const hostname = window.location.hostname.toLowerCase()
     return (
-      window.location.hostname.includes('amplifyapp.com') ||
-      window.location.hostname.includes('cloudfront.net') ||
-      process.env.NEXT_PUBLIC_ENVIRONMENT === 'production'
+      hostname.includes('amplifyapp.com') ||
+      hostname.includes('cloudfront.net') ||
+      hostname.includes('amazonaws.com') ||
+      (!hostname.includes('localhost') && !hostname.includes('127.0.0.1'))
     )
   }, [])
 
