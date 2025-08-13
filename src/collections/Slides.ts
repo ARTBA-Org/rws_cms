@@ -32,6 +32,26 @@ const Slides: CollectionConfig = {
           value: 'regular',
         },
         {
+          label: 'Title',
+          value: 'title',
+        },
+        {
+          label: 'Section',
+          value: 'section',
+        },
+        {
+          label: 'Bullets',
+          value: 'bullets',
+        },
+        {
+          label: 'Image',
+          value: 'image',
+        },
+        {
+          label: 'Conclusion',
+          value: 'conclusion',
+        },
+        {
           label: 'Video',
           value: 'video',
         },
@@ -63,6 +83,49 @@ const Slides: CollectionConfig = {
       ],
     },
     {
+      name: 'extractedText',
+      type: 'textarea',
+      label: 'Extracted Text',
+      admin: {
+        description: 'Text content extracted from the PDF page',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'pdfPage',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'PDF Page',
+      admin: {
+        description: 'Single-page PDF for client-side image conversion',
+      },
+    },
+    {
+      name: 'pageNumber',
+      type: 'number',
+      label: 'Page Number',
+      admin: {
+        readOnly: true,
+      },
+    },
+    {
+      name: 'pageDimensions',
+      type: 'group',
+      label: 'Page Dimensions',
+      fields: [
+        {
+          name: 'width',
+          type: 'number',
+          label: 'Width (px)',
+        },
+        {
+          name: 'height',
+          type: 'number',
+          label: 'Height (px)',
+        },
+      ],
+    },
+    {
       name: 'search_vector',
       type: 'text',
       access: {
@@ -73,7 +136,8 @@ const Slides: CollectionConfig = {
           ({ data }) => {
             const title = data?.title || ''
             const description = data?.description || ''
-            return `${title} ${description}`
+            const extractedText = data?.extractedText || ''
+            return `${title} ${description} ${extractedText}`
           },
         ],
       },
