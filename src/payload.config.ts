@@ -194,6 +194,8 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    // Reduce admin DB lookups that can fail on short-lived connections
+    livePreview: null,
   },
   collections: [Users, Media, Courses, Modules, Slides],
   editor: lexicalEditor(),
@@ -205,14 +207,14 @@ export default buildConfig({
   db: postgresAdapter({
     pool: {
       connectionString: DATABASE_URI,
-      ssl: {
-        rejectUnauthorized: false,
-      },
-      max: 20, // Maximum number of clients in the pool
-      min: 5, // Minimum number of idle clients maintained in the pool
-      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-      connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
-      statement_timeout: 300000, // Statement timeout in milliseconds (5 minutes for PDF processing)
+      ssl: { rejectUnauthorized: false },
+      // Serverless-safe pool settings
+      max: 4,
+      min: 0,
+      idleTimeoutMillis: 0,
+      connectionTimeoutMillis: 5000,
+      keepAlive: true,
+      statement_timeout: 300000, // 5 minutes for PDF processing
     },
   }),
   sharp,
