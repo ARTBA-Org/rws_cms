@@ -12,6 +12,16 @@ const Slides: CollectionConfig = {
       required: true,
     },
     {
+      name: 'source',
+      type: 'group',
+      admin: { readOnly: true },
+      fields: [
+        { name: 'pdfFilename', type: 'text' },
+        { name: 'pdfPage', type: 'number' },
+        { name: 'module', type: 'relationship', relationTo: 'modules' },
+      ],
+    },
+    {
       name: 'description',
       type: 'textarea',
     },

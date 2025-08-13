@@ -56,6 +56,7 @@ export class PDFProcessorOptimized {
       timeoutMs: config.timeoutMs || 25000, // Leave 3s buffer for Lambda 28s timeout
       enableImages: config.enableImages !== false,
       batchSize: config.batchSize || 1,
+      startPage: config.startPage ?? 1,
     }
   }
 
@@ -79,6 +80,7 @@ export class PDFProcessorOptimized {
     let imagesGenerated = false
     let pagesProcessed = 0
     let totalPages = 0
+    let highestPageAttempted = 0
 
     try {
       console.log('🚀 Initializing Payload...')
@@ -88,10 +90,12 @@ export class PDFProcessorOptimized {
       console.log('📖 Loading PDF document...')
       const pdfDoc = await PDFDocument.load(pdfBuffer)
       totalPages = pdfDoc.getPageCount()
-      const startPage = Math.max(1, Number(this.config.startPage || 1))
+      // Determine the first page to process and clamp within [1, totalPages]
+      const configuredStart = Number(this.config.startPage || 1)
+      const startPage = Math.min(totalPages, Math.max(1, configuredStart))
       const remaining = Math.max(0, totalPages - startPage + 1)
       const pagesToProcess = Math.min(remaining, this.config.maxPages!)
-      const endPage = Math.max(startPage - 1 + pagesToProcess, startPage - 1)
+      const endPage = Math.max(startPage - 1 + Math.max(0, pagesToProcess), startPage - 1)
       console.log(
         `📊 PDF has ${totalPages} pages, processing ${pagesToProcess} page(s) from ${startPage} to ${endPage}`,
       )
@@ -149,6 +153,7 @@ export class PDFProcessorOptimized {
               singlePageBuffers.get(pageNum),
               pdfFilename,
               payload,
+              moduleId,
             )
           } catch (error) {
             console.error(`❌ Error processing page ${pageNum}:`, error)
@@ -158,10 +163,18 @@ export class PDFProcessorOptimized {
 
         const batchResults = await Promise.all(batchPromises)
 
-        for (const result of batchResults) {
+        for (let i = 0; i < batch.length; i++) {
+          const pageNum = batch[i]
+          const result = batchResults[i]
+
+          // Track highest page we attempted (including duplicates)
+          highestPageAttempted = Math.max(highestPageAttempted, pageNum)
+
           if (result) {
             slideIds.push(result.slideId)
-            slidesCreated++
+            if (!result.wasExisting) {
+              slidesCreated++
+            }
             pagesProcessed++
             if (result.imageGenerated) {
               imagesGenerated = true
@@ -196,7 +209,7 @@ export class PDFProcessorOptimized {
             collection: 'modules',
             id: String(moduleId),
             data: {
-              slides: [...existingSlides, ...slideIds],
+              slides: Array.from(new Set([...existingSlides, ...slideIds])),
             },
             overrideAccess: true,
             depth: 0, // Don't return populated relationships
@@ -214,8 +227,14 @@ export class PDFProcessorOptimized {
 
       const timeElapsed = Date.now() - this.startTime
       const partialSuccess = endPage < totalPages
-      const nextStartPage =
-        startPage + pagesProcessed <= totalPages ? startPage + pagesProcessed : null
+
+      // Use highestPageAttempted to determine next page
+      // This handles duplicates correctly - we move past them
+      const nextStartPage = highestPageAttempted < totalPages ? highestPageAttempted + 1 : null
+
+      console.log(
+        `📊 Progress: startPage=${startPage}, endPage=${endPage}, highestPageAttempted=${highestPageAttempted}, nextStartPage=${nextStartPage}, totalPages=${totalPages}`,
+      )
 
       return {
         success: true,
@@ -278,7 +297,8 @@ export class PDFProcessorOptimized {
     singlePageBuffer: Buffer | undefined,
     pdfFilename: string,
     payload: any,
-  ): Promise<{ slideId: string | number; imageGenerated: boolean } | null> {
+    moduleId: string,
+  ): Promise<{ slideId: string | number; imageGenerated: boolean; wasExisting?: boolean } | null> {
     console.log(`📄 Processing page ${pageNum}/${totalPages}`)
 
     // Get page dimensions
@@ -312,7 +332,8 @@ export class PDFProcessorOptimized {
         if (!this.imageConverter) {
           this.imageConverter = await loadImageConverter()
         }
-        const imageBuffer = await this.imageConverter(singlePageBuffer, 1)
+        // Note: singlePageBuffer contains only one page, so we always use page 1
+        const imageBuffer = await this.imageConverter(singlePageBuffer, 1, pageNum)
 
         if (imageBuffer && imageBuffer.length > 0) {
           const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`
@@ -360,9 +381,66 @@ export class PDFProcessorOptimized {
       slideData.image = imageMediaId
     }
 
+    // Idempotency: avoid duplicate slide for same module+pdf+page
+    try {
+      const existing = await payload.find({
+        collection: 'slides',
+        where: {
+          and: [
+            { 'source.module': { equals: Number(moduleId) } },
+            { 'source.pdfFilename': { equals: pdfFilename } },
+            { 'source.pdfPage': { equals: pageNum } },
+          ],
+        },
+        limit: 1,
+        overrideAccess: true,
+        depth: 0,
+      })
+      if (existing.docs && existing.docs.length > 0) {
+        const existingSlide = existing.docs[0] as any
+        // If an image was generated on this run and the existing slide lacks an image, attach it
+        if (
+          imageMediaId &&
+          (!existingSlide.image ||
+            (typeof existingSlide.image === 'object' && !existingSlide.image?.id))
+        ) {
+          try {
+            await payload.update({
+              collection: 'slides',
+              id: String(existingSlide.id),
+              data: { image: imageMediaId },
+              overrideAccess: true,
+              depth: 0,
+            })
+            console.log(`🔗 Attached image ${imageMediaId} to existing slide ${existingSlide.id}`)
+            return { slideId: existingSlide.id, imageGenerated: true, wasExisting: true }
+          } catch (attachErr) {
+            console.warn(
+              `⚠️ Failed to attach image to existing slide ${existingSlide.id}:`,
+              attachErr,
+            )
+            return { slideId: existingSlide.id, imageGenerated: false, wasExisting: true }
+          }
+        }
+        console.log(
+          `↩️ Skipping duplicate slide for page ${pageNum} (already exists: ${existingSlide.id})`,
+        )
+        return { slideId: existingSlide.id, imageGenerated: false, wasExisting: true }
+      }
+    } catch (findErr) {
+      console.warn('⚠️ Duplicate-check failed, proceeding to create slide:', findErr)
+    }
+
     const slide = await payload.create({
       collection: 'slides',
-      data: slideData,
+      data: {
+        ...slideData,
+        source: {
+          pdfFilename,
+          pdfPage: pageNum,
+          module: Number(moduleId),
+        },
+      },
       overrideAccess: true,
       depth: 0,
     })
@@ -372,6 +450,7 @@ export class PDFProcessorOptimized {
     return {
       slideId: slide.id,
       imageGenerated,
+      wasExisting: false,
     }
   }
 

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       useOptimized = true,
       useChunked = false,
       processorConfig = {},
-      startPage,
+      startPage: clientStartPage,
     } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
@@ -140,6 +140,38 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ PDF buffer ready, size:', pdfBuffer.length)
 
+    // Use client's explicit startPage if provided, otherwise infer from existing slides
+    let startPage = clientStartPage
+    if (!startPage || startPage < 1) {
+      console.log('📌 No valid startPage from client, inferring from existing slides...')
+      startPage = 1
+      try {
+        const existingSlides = await payload.find({
+          collection: 'slides',
+          where: {
+            and: [
+              { 'source.module': { equals: Number(moduleId) } },
+              { 'source.pdfFilename': { equals: mediaDoc.filename || '' } },
+            ],
+          },
+          limit: 500,
+          depth: 0,
+          overrideAccess: true,
+        })
+        const pages = (existingSlides.docs as any[])
+          .map((s) => Number(s?.source?.pdfPage))
+          .filter((n) => Number.isFinite(n) && n > 0)
+        if (pages.length > 0) {
+          startPage = Math.max(...pages) + 1
+        }
+        console.log('📌 Inferred startPage from existing slides:', startPage)
+      } catch (inferErr) {
+        console.warn('⚠️ Could not infer start page from existing slides:', inferErr)
+      }
+    } else {
+      console.log('📌 Using client-provided startPage:', startPage)
+    }
+
     let result
 
     if (useChunked) {
@@ -173,7 +205,7 @@ export async function POST(request: NextRequest) {
       const merged = {
         ...defaultConfig,
         ...processorConfig,
-        startPage: startPage ?? processorConfig.startPage,
+        startPage: startPage,
       }
 
       // Enforce safe caps in server to avoid SSR/Lambda timeout and long requests

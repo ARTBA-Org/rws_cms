@@ -6,12 +6,14 @@ import puppeteer from 'puppeteer'
  */
 export async function convertPDFPageToImageLocal(
   pdfBuffer: Buffer,
-  pageNum: number = 1
+  pageNum: number = 1,
+  originalPageNum?: number,
 ): Promise<Buffer | null> {
-  console.log(`🖼️ Converting PDF page ${pageNum} to image using Puppeteer (Local)...`)
-  
+  const displayPage = originalPageNum || pageNum
+  console.log(`🖼️ Converting PDF page ${displayPage} to image using Puppeteer (Local)...`)
+
   let browser = null
-  
+
   try {
     // Launch regular Puppeteer for local development
     browser = await puppeteer.launch({
@@ -24,19 +26,19 @@ export async function convertPDFPageToImageLocal(
         '--no-first-run',
         '--no-zygote',
         '--single-process',
-        '--disable-extensions'
-      ]
+        '--disable-extensions',
+      ],
     })
-    
+
     const page = await browser.newPage()
-    
+
     // Set viewport for consistent rendering
     await page.setViewport({
       width: 1200,
       height: 1600,
-      deviceScaleFactor: 2
+      deviceScaleFactor: 2,
     })
-    
+
     // Create HTML with embedded PDF using pdf.js
     const html = `
       <!DOCTYPE html>
@@ -81,28 +83,27 @@ export async function convertPDFPageToImageLocal(
       </body>
       </html>
     `
-    
+
     await page.setContent(html, { waitUntil: 'networkidle0' })
-    
+
     // Wait for PDF to render
     await page.waitForFunction(() => (window as any).renderComplete === true, {
-      timeout: 10000
+      timeout: 10000,
     })
-    
+
     // Take screenshot
     const screenshot = await page.screenshot({
       type: 'png',
       fullPage: false,
-      encoding: 'binary'
+      encoding: 'binary',
     })
-    
+
     await browser.close()
-    
+
     const buffer = Buffer.from(screenshot as Buffer)
     console.log(`✅ Successfully converted PDF page ${pageNum} to image (${buffer.length} bytes)`)
-    
+
     return buffer
-    
   } catch (error) {
     console.error('❌ Error converting PDF to image:', error)
     if (browser) {

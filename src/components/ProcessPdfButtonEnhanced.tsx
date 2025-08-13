@@ -1,16 +1,21 @@
 'use client'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 
 export default function ProcessPdfButtonEnhanced() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [message, setMessage] = useState('')
   const [progress, setProgress] = useState(0)
-  const [config, setConfig] = useState({
-    maxPages: 5,
-    enableImages: true,
-    useOptimized: true,
-  })
+  // Simplified defaults: always generate images, use optimized processor
+  const config = { maxPages: 5, enableImages: true, useOptimized: true }
   const [nextStartPage, setNextStartPage] = useState<number | null>(1)
+  const nextStartPageRef = useRef<number | null>(1)
+  const [hasPdf, setHasPdf] = useState<boolean>(false)
+  const [checkedPdf, setCheckedPdf] = useState<boolean>(false)
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    nextStartPageRef.current = nextStartPage
+  }, [nextStartPage])
 
   const moduleId = useMemo(() => {
     if (typeof window === 'undefined') return undefined
@@ -20,6 +25,28 @@ export default function ProcessPdfButtonEnhanced() {
     return idPart
   }, [])
 
+  // Check if module has a PDF uploaded; only show button when it does
+  useEffect(() => {
+    const run = async () => {
+      if (!moduleId) {
+        setCheckedPdf(true)
+        return
+      }
+      try {
+        const res = await fetch(`/api/modules/${moduleId}?depth=0`, { cache: 'no-store' })
+        if (res.ok) {
+          const doc = await res.json()
+          setHasPdf(!!doc?.pdfUpload)
+        }
+      } catch {
+        // ignore
+      } finally {
+        setCheckedPdf(true)
+      }
+    }
+    run()
+  }, [moduleId])
+
   const handleProcessPdf = async () => {
     if (!moduleId) {
       setMessage('❌ Module ID not found')
@@ -28,12 +55,16 @@ export default function ProcessPdfButtonEnhanced() {
 
     setIsProcessing(true)
     setProgress(0)
-    setMessage('🚀 Starting PDF processing...')
+    setMessage('⏳ Processing...')
     console.log('🔧 Processing PDF for module:', moduleId)
+    console.log('📄 Current nextStartPage state:', nextStartPage, 'ref:', nextStartPageRef.current)
 
     try {
-      // Configure timeout based on settings
-      const timeoutMs = config.enableImages ? 55000 : 30000
+      // Conservative timeout; server still enforces caps
+      const timeoutMs = 55000
+
+      // Use the ref value which is always up-to-date
+      const startPage = nextStartPageRef.current || 1
 
       const response = await fetch('/api/test-process-module-pdf', {
         method: 'POST',
@@ -49,7 +80,7 @@ export default function ProcessPdfButtonEnhanced() {
             enableImages: config.enableImages,
             batchSize: 1,
           },
-          startPage: nextStartPage || 1,
+          startPage,
         }),
       })
 
@@ -63,35 +94,27 @@ export default function ProcessPdfButtonEnhanced() {
       console.log('📋 API Response:', { status: response.status, result })
 
       if (response.ok && result.success) {
-        const { slidesCreated, pagesProcessed, totalPages, partialSuccess, timeElapsed } = result
-
-        let message = `✅ Successfully created ${slidesCreated} slides`
-
-        if (partialSuccess) {
-          message = `⚠️ Partial success: Created ${slidesCreated} slides from ${pagesProcessed}/${totalPages} pages`
-        } else if (pagesProcessed === totalPages) {
-          message = `✅ Complete! All ${slidesCreated} slides created from ${totalPages} pages`
-        }
-
-        if (timeElapsed) {
-          message += ` (${(timeElapsed / 1000).toFixed(1)}s)`
-        }
-
-        setMessage(message)
+        setMessage('⏳ Processing...')
         setProgress(100)
-        // Handle progressive paging
-        if (result.nextStartPage) {
+        // Progressive auto-continue for all cases
+        const currentStartPage = nextStartPageRef.current || 1
+        console.log(
+          `🔍 Auto-continue check: nextStartPage=${nextStartPage}, ref=${nextStartPageRef.current}, currentStartPage=${currentStartPage}, result.nextStartPage=${result.nextStartPage}`,
+        )
+        if (result.nextStartPage && result.nextStartPage > currentStartPage) {
+          console.log(`📄 Auto-continuing to page ${result.nextStartPage}...`)
           setNextStartPage(result.nextStartPage)
+          // nextStartPageRef will be updated by the useEffect
           setTimeout(() => {
+            console.log(`⏰ Auto-continue timer fired, calling handleProcessPdf()`)
             handleProcessPdf()
           }, 500)
         } else {
-          setNextStartPage(null)
-          if (slidesCreated > 0) {
-            setTimeout(() => {
-              window.location.reload()
-            }, 2000)
-          }
+          console.log('✅ All pages processed — refreshing')
+          setNextStartPage(1) // Reset for next run
+          setTimeout(() => {
+            window.location.reload()
+          }, 800)
         }
       } else {
         const statusText = `${response.status} ${response.statusText || ''}`.trim()
@@ -112,97 +135,11 @@ export default function ProcessPdfButtonEnhanced() {
     }
   }
 
-  if (!moduleId || moduleId === 'create') {
-    return (
-      <div
-        style={{
-          padding: '16px',
-          background: '#f8f9fa',
-          borderRadius: '8px',
-          margin: '16px 0',
-        }}
-      >
-        <p style={{ margin: 0, color: '#6c757d', fontSize: '14px' }}>
-          💡 Save the module first, then you can process PDFs into slides.
-        </p>
-      </div>
-    )
-  }
+  // If module not ready or no PDF, render nothing
+  if (!moduleId || !checkedPdf || !hasPdf) return null
 
   return (
-    <div
-      style={{
-        padding: '16px',
-        background: '#f8f9fa',
-        borderRadius: '8px',
-        margin: '16px 0',
-      }}
-    >
-      <h4
-        style={{
-          margin: '0 0 12px 0',
-          fontSize: '16px',
-          fontWeight: '600',
-        }}
-      >
-        PDF Processing
-      </h4>
-
-      <p
-        style={{
-          margin: '0 0 16px 0',
-          color: '#6c757d',
-          fontSize: '14px',
-        }}
-      >
-        Upload a PDF file here, then use the processing button below to convert it into slides.
-      </p>
-
-      {/* Configuration Options */}
-      <div
-        style={{
-          marginBottom: '16px',
-          padding: '12px',
-          background: 'white',
-          borderRadius: '4px',
-          border: '1px solid #dee2e6',
-        }}
-      >
-        <div style={{ marginBottom: '8px', fontSize: '14px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={config.enableImages}
-              onChange={(e) => setConfig({ ...config, enableImages: e.target.checked })}
-              disabled={isProcessing}
-              style={{ marginRight: '8px' }}
-            />
-            <span>Generate images from PDF pages</span>
-          </label>
-        </div>
-        <div style={{ fontSize: '14px' }}>
-          <label>
-            Max pages to process:
-            <select
-              value={config.maxPages}
-              onChange={(e) => setConfig({ ...config, maxPages: Number(e.target.value) })}
-              disabled={isProcessing}
-              style={{
-                marginLeft: '8px',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                border: '1px solid #ced4da',
-              }}
-            >
-              <option value={2}>2 pages (fast)</option>
-              <option value={5}>5 pages (standard)</option>
-              <option value={10}>10 pages</option>
-              <option value={20}>20 pages</option>
-            </select>
-          </label>
-        </div>
-      </div>
-
+    <div>
       <button
         onClick={handleProcessPdf}
         disabled={isProcessing}
@@ -215,96 +152,14 @@ export default function ProcessPdfButtonEnhanced() {
           fontSize: '14px',
           fontWeight: '500',
           cursor: isProcessing ? 'not-allowed' : 'pointer',
-          marginBottom: message || isProcessing ? '12px' : '0',
+          margin: 0,
           transition: 'background-color 0.2s',
         }}
       >
         {isProcessing ? '⏳ Processing...' : '🚀 Process PDF into Slides'}
       </button>
 
-      {/* Progress Bar */}
-      {isProcessing && (
-        <div style={{ marginTop: '16px' }}>
-          <div
-            style={{
-              width: '100%',
-              height: '20px',
-              backgroundColor: '#e9ecef',
-              borderRadius: '10px',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                width: `${progress || 10}%`,
-                height: '100%',
-                backgroundColor: '#007bff',
-                transition: 'width 0.3s ease',
-                animation: progress === 0 ? 'pulse 2s infinite' : 'none',
-              }}
-            />
-          </div>
-          <p
-            style={{
-              marginTop: '8px',
-              fontSize: '12px',
-              color: '#6c757d',
-              textAlign: 'center',
-            }}
-          >
-            Processing PDF pages...
-          </p>
-        </div>
-      )}
-
-      {/* Status Message */}
-      {message && (
-        <div
-          style={{
-            padding: '12px',
-            backgroundColor: message.includes('❌')
-              ? '#f8d7da'
-              : message.includes('✅')
-                ? '#d4edda'
-                : message.includes('⚠️')
-                  ? '#fff3cd'
-                  : '#d1ecf1',
-            color: message.includes('❌')
-              ? '#721c24'
-              : message.includes('✅')
-                ? '#155724'
-                : message.includes('⚠️')
-                  ? '#856404'
-                  : '#0c5460',
-            borderRadius: '4px',
-            fontSize: '14px',
-            border: `1px solid ${
-              message.includes('❌')
-                ? '#f5c6cb'
-                : message.includes('✅')
-                  ? '#c3e6cb'
-                  : message.includes('⚠️')
-                    ? '#ffeeba'
-                    : '#bee5eb'
-            }`,
-          }}
-        >
-          {message}
-          {message.includes('⚠️') && (
-            <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
-              💡 Tip: Try processing fewer pages or disabling image generation for faster results.
-            </p>
-          )}
-        </div>
-      )}
-
-      <style>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
-      `}</style>
+      {isProcessing && null}
     </div>
   )
 }

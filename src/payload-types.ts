@@ -231,6 +231,11 @@ export interface Module {
 export interface Slide {
   id: number;
   title: string;
+  source?: {
+    pdfFilename?: string | null;
+    pdfPage?: number | null;
+    module?: (number | null) | Module;
+  };
   description?: string | null;
   image?: (number | null) | Media;
   type?: ('regular' | 'video' | 'quiz' | 'reference' | 'resources') | null;
@@ -451,6 +456,13 @@ export interface ModulesSelect<T extends boolean = true> {
  */
 export interface SlidesSelect<T extends boolean = true> {
   title?: T;
+  source?:
+    | T
+    | {
+        pdfFilename?: T;
+        pdfPage?: T;
+        module?: T;
+      };
   description?: T;
   image?: T;
   type?: T;

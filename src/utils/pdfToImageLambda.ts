@@ -6,12 +6,17 @@
 import puppeteer from 'puppeteer-core'
 import chromium from '@sparticuz/chromium'
 
-export async function convertPDFPageToImage(pdfBuffer: Buffer, pageNumber: number = 1): Promise<Buffer | null> {
+export async function convertPDFPageToImage(
+  pdfBuffer: Buffer,
+  pageNumber: number = 1,
+  originalPageNum?: number,
+): Promise<Buffer | null> {
   let browser = null
-  
+
   try {
-    console.log(`🖼️ Converting PDF page ${pageNumber} to image using Puppeteer...`)
-    
+    const displayPage = originalPageNum || pageNumber
+    console.log(`🖼️ Converting PDF page ${displayPage} to image using Puppeteer...`)
+
     // Launch headless Chrome in Lambda
     browser = await puppeteer.launch({
       args: chromium.args,
@@ -19,13 +24,13 @@ export async function convertPDFPageToImage(pdfBuffer: Buffer, pageNumber: numbe
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
     })
-    
+
     const page = await browser.newPage()
-    
+
     // Convert PDF buffer to base64 data URL
     const pdfBase64 = pdfBuffer.toString('base64')
     const pdfDataUrl = `data:application/pdf;base64,${pdfBase64}`
-    
+
     // HTML template to render PDF using PDF.js
     const html = `
       <!DOCTYPE html>
@@ -74,25 +79,26 @@ export async function convertPDFPageToImage(pdfBuffer: Buffer, pageNumber: numbe
       </body>
       </html>
     `
-    
+
     // Set the HTML content
     await page.setContent(html, { waitUntil: 'networkidle0' })
-    
+
     // Wait for PDF rendering to complete
     await page.waitForFunction(() => (window as any).renderComplete === true, {
-      timeout: 30000
+      timeout: 30000,
     })
-    
+
     // Take screenshot of the rendered PDF page
-    const screenshot = await page.screenshot({
+    const screenshot = (await page.screenshot({
       type: 'png',
       fullPage: true,
-      encoding: 'binary'
-    }) as Buffer
-    
-    console.log(`✅ Successfully converted PDF page ${pageNumber} to image (${screenshot.length} bytes)`)
+      encoding: 'binary',
+    })) as Buffer
+
+    console.log(
+      `✅ Successfully converted PDF page ${pageNumber} to image (${screenshot.length} bytes)`,
+    )
     return screenshot
-    
   } catch (error) {
     console.error('❌ Error converting PDF to image:', error)
     return null
