@@ -1,29 +1,10 @@
 'use client'
-import React, { useState, useMemo, useEffect } from 'react'
-
-interface ProcessingStatus {
-  isProcessing: boolean
-  message: string
-  progress?: {
-    current: number
-    total: number
-    phase: 'extracting' | 'processing' | 'generating' | 'saving' | 'complete'
-  }
-  error?: string
-  result?: {
-    slidesCreated: number
-    pagesProcessed: number
-    totalPages: number
-    partialSuccess?: boolean
-    timeElapsed?: number
-  }
-}
+import React, { useState, useMemo } from 'react'
 
 export default function ProcessPdfButtonEnhanced() {
-  const [status, setStatus] = useState<ProcessingStatus>({
-    isProcessing: false,
-    message: ''
-  })
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [message, setMessage] = useState('')
+  const [progress, setProgress] = useState(0)
   const [config, setConfig] = useState({
     maxPages: 5,
     enableImages: true,
@@ -40,27 +21,18 @@ export default function ProcessPdfButtonEnhanced() {
 
   const handleProcessPdf = async () => {
     if (!moduleId) {
-      setStatus({
-        isProcessing: false,
-        message: '❌ Module ID not found',
-        error: 'Module ID not found'
-      })
+      setMessage('❌ Module ID not found')
       return
     }
 
-    setStatus({
-      isProcessing: true,
-      message: '🚀 Starting PDF processing...',
-      progress: {
-        current: 0,
-        total: config.maxPages,
-        phase: 'extracting'
-      }
-    })
+    setIsProcessing(true)
+    setProgress(0)
+    setMessage('🚀 Starting PDF processing...')
+    console.log('🔧 Processing PDF for module:', moduleId)
 
     try {
-      // Start processing with timeout configuration
-      const timeoutMs = config.enableImages ? 55000 : 30000 // Adjust based on Lambda timeout
+      // Configure timeout based on settings
+      const timeoutMs = config.enableImages ? 55000 : 30000
       
       const response = await fetch('/api/test-process-module-pdf', {
         method: 'POST',
@@ -97,22 +69,8 @@ export default function ProcessPdfButtonEnhanced() {
           message += ` (${(timeElapsed / 1000).toFixed(1)}s)`
         }
 
-        setStatus({
-          isProcessing: false,
-          message,
-          result: {
-            slidesCreated,
-            pagesProcessed,
-            totalPages,
-            partialSuccess,
-            timeElapsed
-          },
-          progress: {
-            current: pagesProcessed,
-            total: totalPages,
-            phase: 'complete'
-          }
-        })
+        setMessage(message)
+        setProgress(100)
 
         // Auto-refresh after showing results
         if (slidesCreated > 0) {
@@ -122,66 +80,90 @@ export default function ProcessPdfButtonEnhanced() {
         }
       } else {
         const errorMsg = result.error || result.errors?.[0] || 'Processing failed'
-        setStatus({
-          isProcessing: false,
-          message: `❌ Error: ${errorMsg}`,
-          error: errorMsg
-        })
+        setMessage(`❌ Error: ${errorMsg}`)
+        setProgress(0)
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error'
-      setStatus({
-        isProcessing: false,
-        message: `❌ Network error: ${errorMsg}`,
-        error: errorMsg
-      })
+      setMessage(`❌ Network error: ${errorMsg}`)
+      setProgress(0)
       console.error('❌ Network error:', error)
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   if (!moduleId || moduleId === 'create') {
     return (
-      <div className="pdf-processor-container">
-        <p className="info-message">
+      <div style={{ 
+        padding: '16px', 
+        background: '#f8f9fa', 
+        borderRadius: '8px', 
+        margin: '16px 0' 
+      }}>
+        <p style={{ margin: 0, color: '#6c757d', fontSize: '14px' }}>
           💡 Save the module first, then you can process PDFs into slides.
         </p>
       </div>
     )
   }
 
-  const progressPercentage = status.progress 
-    ? (status.progress.current / status.progress.total) * 100 
-    : 0
-
   return (
-    <div className="pdf-processor-container">
-      <h4 className="section-title">PDF Processing</h4>
+    <div style={{ 
+      padding: '16px', 
+      background: '#f8f9fa', 
+      borderRadius: '8px', 
+      margin: '16px 0' 
+    }}>
+      <h4 style={{ 
+        margin: '0 0 12px 0', 
+        fontSize: '16px', 
+        fontWeight: '600' 
+      }}>
+        PDF Processing
+      </h4>
 
-      <p className="section-description">
+      <p style={{ 
+        margin: '0 0 16px 0', 
+        color: '#6c757d', 
+        fontSize: '14px' 
+      }}>
         Upload a PDF file here, then use the processing button below to convert it into slides.
       </p>
 
       {/* Configuration Options */}
-      <div className="config-section">
-        <div className="config-item">
-          <label>
+      <div style={{
+        marginBottom: '16px',
+        padding: '12px',
+        background: 'white',
+        borderRadius: '4px',
+        border: '1px solid #dee2e6'
+      }}>
+        <div style={{ marginBottom: '8px', fontSize: '14px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={config.enableImages}
               onChange={(e) => setConfig({ ...config, enableImages: e.target.checked })}
-              disabled={status.isProcessing}
+              disabled={isProcessing}
+              style={{ marginRight: '8px' }}
             />
-            <span> Generate images from PDF pages</span>
+            <span>Generate images from PDF pages</span>
           </label>
         </div>
-        <div className="config-item">
+        <div style={{ fontSize: '14px' }}>
           <label>
             Max pages to process:
             <select
               value={config.maxPages}
               onChange={(e) => setConfig({ ...config, maxPages: Number(e.target.value) })}
-              disabled={status.isProcessing}
-              style={{ marginLeft: '8px' }}
+              disabled={isProcessing}
+              style={{ 
+                marginLeft: '8px',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid #ced4da'
+              }}
             >
               <option value={2}>2 pages (fast)</option>
               <option value={5}>5 pages (standard)</option>
@@ -194,184 +176,93 @@ export default function ProcessPdfButtonEnhanced() {
 
       <button
         onClick={handleProcessPdf}
-        disabled={status.isProcessing}
-        className={`process-button ${status.isProcessing ? 'processing' : ''}`}
+        disabled={isProcessing}
+        style={{
+          padding: '12px 24px',
+          backgroundColor: isProcessing ? '#6c757d' : '#007bff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: '14px',
+          fontWeight: '500',
+          cursor: isProcessing ? 'not-allowed' : 'pointer',
+          marginBottom: message || isProcessing ? '12px' : '0',
+          transition: 'background-color 0.2s'
+        }}
       >
-        {status.isProcessing ? '⏳ Processing...' : '🚀 Process PDF into Slides'}
+        {isProcessing ? '⏳ Processing...' : '🚀 Process PDF into Slides'}
       </button>
 
       {/* Progress Bar */}
-      {status.isProcessing && status.progress && (
-        <div className="progress-container">
-          <div className="progress-bar">
-            <div 
-              className="progress-fill"
-              style={{ width: `${progressPercentage}%` }}
-            />
+      {isProcessing && (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{
+            width: '100%',
+            height: '20px',
+            backgroundColor: '#e9ecef',
+            borderRadius: '10px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${progress || 10}%`,
+              height: '100%',
+              backgroundColor: '#007bff',
+              transition: 'width 0.3s ease',
+              animation: progress === 0 ? 'pulse 2s infinite' : 'none'
+            }} />
           </div>
-          <p className="progress-text">
-            {status.progress.phase === 'extracting' && 'Extracting text from PDF...'}
-            {status.progress.phase === 'processing' && `Processing page ${status.progress.current} of ${status.progress.total}...`}
-            {status.progress.phase === 'generating' && 'Generating images...'}
-            {status.progress.phase === 'saving' && 'Saving slides...'}
-            {status.progress.phase === 'complete' && 'Complete!'}
+          <p style={{
+            marginTop: '8px',
+            fontSize: '12px',
+            color: '#6c757d',
+            textAlign: 'center'
+          }}>
+            Processing PDF pages...
           </p>
         </div>
       )}
 
       {/* Status Message */}
-      {status.message && (
-        <div className={`status-message ${
-          status.message.includes('❌') ? 'error' : 
-          status.message.includes('✅') ? 'success' : 
-          status.message.includes('⚠️') ? 'warning' : 
-          'info'
-        }`}>
-          {status.message}
-          {status.result && status.result.partialSuccess && (
-            <p className="status-detail">
+      {message && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: message.includes('❌')
+            ? '#f8d7da'
+            : message.includes('✅')
+              ? '#d4edda'
+              : message.includes('⚠️')
+                ? '#fff3cd'
+                : '#d1ecf1',
+          color: message.includes('❌')
+            ? '#721c24'
+            : message.includes('✅')
+              ? '#155724'
+              : message.includes('⚠️')
+                ? '#856404'
+                : '#0c5460',
+          borderRadius: '4px',
+          fontSize: '14px',
+          border: `1px solid ${
+            message.includes('❌') ? '#f5c6cb' : 
+            message.includes('✅') ? '#c3e6cb' : 
+            message.includes('⚠️') ? '#ffeeba' : 
+            '#bee5eb'
+          }`
+        }}>
+          {message}
+          {message.includes('⚠️') && (
+            <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
               💡 Tip: Try processing fewer pages or disabling image generation for faster results.
             </p>
           )}
         </div>
       )}
 
-      <style jsx>{`
-        .pdf-processor-container {
-          padding: 16px;
-          background: #f8f9fa;
-          border-radius: 8px;
-          margin: 16px 0;
-        }
-
-        .section-title {
-          margin: 0 0 12px 0;
-          font-size: 16px;
-          font-weight: 600;
-        }
-
-        .section-description {
-          margin: 0 0 16px 0;
-          color: #6c757d;
-          font-size: 14px;
-        }
-
-        .info-message {
-          margin: 0;
-          color: #6c757d;
-          font-size: 14px;
-        }
-
-        .config-section {
-          margin-bottom: 16px;
-          padding: 12px;
-          background: white;
-          border-radius: 4px;
-          border: 1px solid #dee2e6;
-        }
-
-        .config-item {
-          margin-bottom: 8px;
-          font-size: 14px;
-        }
-
-        .config-item:last-child {
-          margin-bottom: 0;
-        }
-
-        .config-item label {
-          display: flex;
-          align-items: center;
-          cursor: pointer;
-        }
-
-        .config-item input[type="checkbox"] {
-          margin-right: 8px;
-        }
-
-        .process-button {
-          padding: 12px 24px;
-          background-color: #007bff;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: background-color 0.2s;
-        }
-
-        .process-button:hover:not(:disabled) {
-          background-color: #0056b3;
-        }
-
-        .process-button:disabled {
-          background-color: #6c757d;
-          cursor: not-allowed;
-        }
-
-        .progress-container {
-          margin-top: 16px;
-        }
-
-        .progress-bar {
-          width: 100%;
-          height: 20px;
-          background-color: #e9ecef;
-          border-radius: 10px;
-          overflow: hidden;
-        }
-
-        .progress-fill {
-          height: 100%;
-          background-color: #007bff;
-          transition: width 0.3s ease;
-        }
-
-        .progress-text {
-          margin-top: 8px;
-          font-size: 12px;
-          color: #6c757d;
-          text-align: center;
-        }
-
-        .status-message {
-          margin-top: 12px;
-          padding: 12px;
-          border-radius: 4px;
-          font-size: 14px;
-          border-width: 1px;
-          border-style: solid;
-        }
-
-        .status-message.error {
-          background-color: #f8d7da;
-          color: #721c24;
-          border-color: #f5c6cb;
-        }
-
-        .status-message.success {
-          background-color: #d4edda;
-          color: #155724;
-          border-color: #c3e6cb;
-        }
-
-        .status-message.warning {
-          background-color: #fff3cd;
-          color: #856404;
-          border-color: #ffeeba;
-        }
-
-        .status-message.info {
-          background-color: #d1ecf1;
-          color: #0c5460;
-          border-color: #bee5eb;
-        }
-
-        .status-detail {
-          margin: 8px 0 0 0;
-          font-size: 12px;
-          opacity: 0.9;
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
         }
       `}</style>
     </div>

@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     })
 
     const SERVER_ORIGIN =
-      process.env.PAYLOAD_PUBLIC_SERVER_URL || `http://localhost:${process.env.PORT || 3000}`
+      process.env.PAYLOAD_PUBLIC_SERVER_URL || `http://localhost:${process.env.PORT || 3001}`
     const absoluteUrl = mediaDoc.url.startsWith('http')
       ? mediaDoc.url
       : `${SERVER_ORIGIN}${mediaDoc.url}`
