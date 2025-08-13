@@ -3,6 +3,11 @@ import { getPayload } from 'payload'
 import config from '../payload.config'
 import { extractTextFromPDF } from './pdfTextExtractor'
 import { convertPDFPageToImage } from './pdfToImageLambda'
+import { convertPDFPageToImageLocal } from './pdfToImageLocal'
+
+// Detect if running locally or in Lambda
+const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
+const convertImage = isLambda ? convertPDFPageToImage : convertPDFPageToImageLocal
 
 export interface PDFProcessConfig {
   maxPages?: number
@@ -237,7 +242,7 @@ export class PDFProcessorOptimized {
       const imageStartTime = Date.now()
       
       try {
-        const imageBuffer = await convertPDFPageToImage(singlePageBuffer, 1)
+        const imageBuffer = await convertImage(singlePageBuffer, 1)
         
         if (imageBuffer && imageBuffer.length > 0) {
           const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`

@@ -52,6 +52,7 @@
     "knowhub": "^1.1.0",
     "node-fetch": "^3.3.2",
     "prettier": "^3.6.2",
+    "puppeteer": "^24.16.1",
     "typescript": "^5.9.2"
   },
   "engines": {
