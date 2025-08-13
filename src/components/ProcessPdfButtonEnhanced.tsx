@@ -10,6 +10,7 @@ export default function ProcessPdfButtonEnhanced() {
     enableImages: true,
     useOptimized: true,
   })
+  const [nextStartPage, setNextStartPage] = useState<number | null>(1)
 
   const moduleId = useMemo(() => {
     if (typeof window === 'undefined') return undefined
@@ -48,6 +49,7 @@ export default function ProcessPdfButtonEnhanced() {
             enableImages: config.enableImages,
             batchSize: 1,
           },
+          startPage: nextStartPage || 1,
         }),
       })
 
@@ -77,15 +79,26 @@ export default function ProcessPdfButtonEnhanced() {
 
         setMessage(message)
         setProgress(100)
-
-        // Auto-refresh after showing results
-        if (slidesCreated > 0) {
+        // Handle progressive paging
+        if (result.nextStartPage) {
+          setNextStartPage(result.nextStartPage)
           setTimeout(() => {
-            window.location.reload()
-          }, 3000)
+            handleProcessPdf()
+          }, 500)
+        } else {
+          setNextStartPage(null)
+          if (slidesCreated > 0) {
+            setTimeout(() => {
+              window.location.reload()
+            }, 2000)
+          }
         }
       } else {
-        const errorMsg = result.error || result.errors?.[0] || 'Processing failed'
+        const statusText = `${response.status} ${response.statusText || ''}`.trim()
+        const errorMsg =
+          result.error ||
+          result.errors?.[0] ||
+          (response.ok ? 'Processing failed' : statusText || 'Network/timeout')
         setMessage(`❌ Error: ${errorMsg}`)
         setProgress(0)
       }

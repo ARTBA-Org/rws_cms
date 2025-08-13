@@ -8,7 +8,9 @@ const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_
 
 // Lazy-load the correct converter only when needed to avoid bundling
 // heavy, environment-specific dependencies in the wrong environment
-async function loadImageConverter(): Promise<(pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>> {
+async function loadImageConverter(): Promise<
+  (pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>
+> {
   if (isLambda) {
     const { convertPDFPageToImage } = await import('./pdfToImageLambda')
     return convertPDFPageToImage
@@ -22,6 +24,7 @@ export interface PDFProcessConfig {
   timeoutMs?: number
   enableImages?: boolean
   batchSize?: number
+  startPage?: number
 }
 
 export interface PDFProcessResult {
@@ -37,12 +40,15 @@ export interface PDFProcessResult {
   pagesProcessed?: number
   partialSuccess?: boolean
   timeElapsed?: number
+  startPage?: number
+  nextStartPage?: number | null
 }
 
 export class PDFProcessorOptimized {
   private config: PDFProcessConfig
   private startTime: number = 0
-  private imageConverter: ((pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>) | null = null
+  private imageConverter: ((pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>) | null =
+    null
 
   constructor(config: PDFProcessConfig = {}) {
     this.config = {
@@ -73,7 +79,7 @@ export class PDFProcessorOptimized {
     let imagesGenerated = false
     let pagesProcessed = 0
     let totalPages = 0
-    
+
     try {
       console.log('🚀 Initializing Payload...')
       const payload = await getPayload({ config })
@@ -82,30 +88,37 @@ export class PDFProcessorOptimized {
       console.log('📖 Loading PDF document...')
       const pdfDoc = await PDFDocument.load(pdfBuffer)
       totalPages = pdfDoc.getPageCount()
-      const pagesToProcess = Math.min(totalPages, this.config.maxPages!)
-      console.log(`📊 PDF has ${totalPages} pages, will process ${pagesToProcess}`)
+      const startPage = Math.max(1, Number(this.config.startPage || 1))
+      const remaining = Math.max(0, totalPages - startPage + 1)
+      const pagesToProcess = Math.min(remaining, this.config.maxPages!)
+      const endPage = Math.max(startPage - 1 + pagesToProcess, startPage - 1)
+      console.log(
+        `📊 PDF has ${totalPages} pages, processing ${pagesToProcess} page(s) from ${startPage} to ${endPage}`,
+      )
 
       // Extract text from entire PDF first (fast operation)
       console.log('📝 Extracting text from PDF...')
       const textStartTime = Date.now()
       const pdfText = await extractTextFromPDF(pdfBuffer)
-      
+
       if (pdfText && pdfText.text) {
         textExtracted = true
         const textTime = Date.now() - textStartTime
-        console.log(`✅ Text extraction completed in ${textTime}ms: ${pdfText.text.length} characters`)
+        console.log(
+          `✅ Text extraction completed in ${textTime}ms: ${pdfText.text.length} characters`,
+        )
       }
 
       // Pre-extract all single page PDFs if images are enabled
       const singlePageBuffers: Map<number, Buffer> = new Map()
       if (this.config.enableImages) {
         console.log('📄 Pre-extracting single page PDFs...')
-        for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
+        for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
           if (this.isTimingOut()) {
             console.warn(`⏱️ Approaching timeout, stopping page extraction at page ${pageNum}`)
             break
           }
-          
+
           const singlePageDoc = await PDFDocument.create()
           const [copiedPage] = await singlePageDoc.copyPages(pdfDoc, [pageNum - 1])
           singlePageDoc.addPage(copiedPage)
@@ -116,7 +129,7 @@ export class PDFProcessorOptimized {
       }
 
       // Process pages in batches
-      const batches = this.createBatches(pagesToProcess, this.config.batchSize!)
+      const batches = this.createBatchesRange(startPage, endPage, this.config.batchSize!)
       console.log(`🔄 Processing ${batches.length} batches`)
 
       for (const batch of batches) {
@@ -135,7 +148,7 @@ export class PDFProcessorOptimized {
               pdfText,
               singlePageBuffers.get(pageNum),
               pdfFilename,
-              payload
+              payload,
             )
           } catch (error) {
             console.error(`❌ Error processing page ${pageNum}:`, error)
@@ -144,7 +157,7 @@ export class PDFProcessorOptimized {
         })
 
         const batchResults = await Promise.all(batchPromises)
-        
+
         for (const result of batchResults) {
           if (result) {
             slideIds.push(result.slideId)
@@ -160,7 +173,7 @@ export class PDFProcessorOptimized {
       // Update module with new slides
       if (slideIds.length > 0) {
         console.log('💾 Updating module with new slides...')
-        
+
         try {
           // Get current slides without loading full relationships
           const currentModule = await payload.findByID({
@@ -174,7 +187,9 @@ export class PDFProcessorOptimized {
           const existingSlides = Array.isArray(existingSlidesRaw)
             ? existingSlidesRaw.map((s: any) => (typeof s === 'object' ? s.id : s)).filter(Boolean)
             : []
-          console.log(`📊 Adding ${slideIds.length} new slides to ${existingSlides.length} existing slides`)
+          console.log(
+            `📊 Adding ${slideIds.length} new slides to ${existingSlides.length} existing slides`,
+          )
 
           // Simple update with just the slide IDs
           await payload.update({
@@ -198,7 +213,9 @@ export class PDFProcessorOptimized {
       }
 
       const timeElapsed = Date.now() - this.startTime
-      const partialSuccess = pagesProcessed < totalPages
+      const partialSuccess = endPage < totalPages
+      const nextStartPage =
+        startPage + pagesProcessed <= totalPages ? startPage + pagesProcessed : null
 
       return {
         success: true,
@@ -211,34 +228,35 @@ export class PDFProcessorOptimized {
         pagesProcessed,
         partialSuccess,
         timeElapsed,
+        startPage,
+        nextStartPage,
       }
-      
     } catch (error) {
       console.error('💥 PDF processing error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       const timeElapsed = Date.now() - this.startTime
-      
+
       // Check if slides were actually created despite the error
       // This handles database timeout errors after successful slide creation
       if (errorMessage.includes('timeout') && slidesCreated > 0) {
         console.warn('⚠️ Database timeout occurred but slides were created successfully')
         console.log('✅ Created slide IDs:', slideIds)
-        
+
         return {
-          success: true,  // Mark as success since slides were created
+          success: true, // Mark as success since slides were created
           slidesCreated,
           slideIds,
-          moduleUpdated: false,  // Module update failed due to timeout
+          moduleUpdated: false, // Module update failed due to timeout
           textExtracted,
           imagesGenerated,
           totalPages,
           pagesProcessed: slidesCreated,
           partialSuccess: false,
           timeElapsed,
-          warnings: ['Module update timed out, but slides were created. Please refresh the page.']
+          warnings: ['Module update timed out, but slides were created. Please refresh the page.'],
         }
       }
-      
+
       return {
         success: false,
         slidesCreated: 0,
@@ -259,10 +277,10 @@ export class PDFProcessorOptimized {
     pdfText: any,
     singlePageBuffer: Buffer | undefined,
     pdfFilename: string,
-    payload: any
+    payload: any,
   ): Promise<{ slideId: string | number; imageGenerated: boolean } | null> {
     console.log(`📄 Processing page ${pageNum}/${totalPages}`)
-    
+
     // Get page dimensions
     const page = pdfDoc.getPage(pageNum - 1)
     const { width, height } = page.getSize()
@@ -285,20 +303,20 @@ export class PDFProcessorOptimized {
     // Generate image if enabled and buffer available
     let imageMediaId = null
     let imageGenerated = false
-    
+
     if (this.config.enableImages && singlePageBuffer && !this.isTimingOut()) {
       console.log(`🖼️ Generating image for page ${pageNum}...`)
       const imageStartTime = Date.now()
-      
+
       try {
         if (!this.imageConverter) {
           this.imageConverter = await loadImageConverter()
         }
         const imageBuffer = await this.imageConverter(singlePageBuffer, 1)
-        
+
         if (imageBuffer && imageBuffer.length > 0) {
           const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`
-          
+
           const mediaDoc = await payload.create({
             collection: 'media',
             data: {
@@ -313,11 +331,13 @@ export class PDFProcessorOptimized {
             overrideAccess: true,
             depth: 0,
           })
-          
+
           imageMediaId = mediaDoc.id
           imageGenerated = true
           const imageTime = Date.now() - imageStartTime
-          console.log(`✅ Image ${imageMediaId} generated in ${imageTime}ms (${(imageBuffer.length / 1024).toFixed(1)}KB)`)
+          console.log(
+            `✅ Image ${imageMediaId} generated in ${imageTime}ms (${(imageBuffer.length / 1024).toFixed(1)}KB)`,
+          )
         }
       } catch (imageError) {
         console.error(`❌ Image generation failed for page ${pageNum}:`, imageError)
@@ -346,20 +366,21 @@ export class PDFProcessorOptimized {
       overrideAccess: true,
       depth: 0,
     })
-    
+
     console.log(`✅ Slide ${slide.id} created for page ${pageNum}`)
-    
+
     return {
       slideId: slide.id,
       imageGenerated,
     }
   }
 
-  private createBatches(totalItems: number, batchSize: number): number[][] {
+  private createBatchesRange(startPage: number, endPage: number, batchSize: number): number[][] {
+    if (endPage < startPage) return []
     const batches: number[][] = []
-    for (let i = 1; i <= totalItems; i += batchSize) {
+    for (let i = startPage; i <= endPage; i += batchSize) {
       const batch: number[] = []
-      for (let j = i; j < Math.min(i + batchSize, totalItems + 1); j++) {
+      for (let j = i; j <= Math.min(i + batchSize - 1, endPage); j++) {
         batch.push(j)
       }
       batches.push(batch)
@@ -382,9 +403,9 @@ export class PDFProcessorOptimized {
       return `${filename.replace('.pdf', '')} - Page ${pageNum}`
     }
 
-    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    const lines = text.split('\n').filter((line) => line.trim().length > 0)
     const firstLine = lines[0]?.trim() || ''
-    
+
     if (firstLine.length > 5 && firstLine.length < 100) {
       return firstLine
         .replace(/[^\w\s-.,!?]/g, '')
@@ -396,46 +417,58 @@ export class PDFProcessorOptimized {
   }
 
   private generateDescription(
-    text: string, 
-    pageNum: number, 
+    text: string,
+    pageNum: number,
     totalPages: number,
     width: number,
-    height: number
+    height: number,
   ): string {
     const pageInfo = `Page ${pageNum} of ${totalPages} (${Math.round(width)}x${Math.round(height)}px)`
-    
+
     if (!text || text.length < 20) {
       return pageInfo
     }
 
-    const cleanText = text
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 500)
+    const cleanText = text.replace(/\s+/g, ' ').trim().substring(0, 500)
 
     return `${pageInfo}\n\n${cleanText}${text.length > 500 ? '...' : ''}`
   }
 
   private detectSlideType(text: string): string {
     const lowerText = text.toLowerCase()
-    
-    if (lowerText.includes('quiz') || lowerText.includes('question') || 
-        lowerText.includes('answer')) {
+
+    if (
+      lowerText.includes('quiz') ||
+      lowerText.includes('question') ||
+      lowerText.includes('answer')
+    ) {
       return 'quiz'
     }
-    
-    if (lowerText.includes('reference') || lowerText.includes('bibliography') || 
-        lowerText.includes('citation') || lowerText.includes('source')) {
+
+    if (
+      lowerText.includes('reference') ||
+      lowerText.includes('bibliography') ||
+      lowerText.includes('citation') ||
+      lowerText.includes('source')
+    ) {
       return 'reference'
     }
-    
-    if (lowerText.includes('resource') || lowerText.includes('link') ||
-        lowerText.includes('download') || lowerText.includes('material')) {
+
+    if (
+      lowerText.includes('resource') ||
+      lowerText.includes('link') ||
+      lowerText.includes('download') ||
+      lowerText.includes('material')
+    ) {
       return 'resources'
     }
 
-    if (lowerText.includes('video') || lowerText.includes('watch') ||
-        lowerText.includes('youtube') || lowerText.includes('vimeo')) {
+    if (
+      lowerText.includes('video') ||
+      lowerText.includes('watch') ||
+      lowerText.includes('youtube') ||
+      lowerText.includes('vimeo')
+    ) {
       return 'video'
     }
 

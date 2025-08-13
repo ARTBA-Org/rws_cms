@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       useOptimized = true,
       useChunked = false,
       processorConfig = {},
+      startPage,
     } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
@@ -169,14 +170,18 @@ export async function POST(request: NextRequest) {
       }
 
       const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
-      const merged = { ...defaultConfig, ...processorConfig }
+      const merged = {
+        ...defaultConfig,
+        ...processorConfig,
+        startPage: startPage ?? processorConfig.startPage,
+      }
 
       // Enforce safe caps in server to avoid SSR/Lambda timeout and long requests
       const finalConfig = {
         ...merged,
         timeoutMs: Math.min(Number(merged.timeoutMs || defaultConfig.timeoutMs), 25000),
         maxPages: isLambda
-          ? Math.min(Number(merged.maxPages || 2), 2)
+          ? 1 // Keep under Amplify's ~28s SSR ceiling by processing a single page per request
           : Number(merged.maxPages || 5),
         batchSize: 1,
       }
