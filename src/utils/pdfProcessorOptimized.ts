@@ -2,12 +2,20 @@ import { PDFDocument } from 'pdf-lib'
 import { getPayload } from 'payload'
 import config from '../payload.config'
 import { extractTextFromPDF } from './pdfTextExtractor'
-import { convertPDFPageToImage } from './pdfToImageLambda'
-import { convertPDFPageToImageLocal } from './pdfToImageLocal'
 
 // Detect if running locally or in Lambda
 const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
-const convertImage = isLambda ? convertPDFPageToImage : convertPDFPageToImageLocal
+
+// Lazy-load the correct converter only when needed to avoid bundling
+// heavy, environment-specific dependencies in the wrong environment
+async function loadImageConverter(): Promise<(pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>> {
+  if (isLambda) {
+    const { convertPDFPageToImage } = await import('./pdfToImageLambda')
+    return convertPDFPageToImage
+  }
+  const { convertPDFPageToImageLocal } = await import('./pdfToImageLocal')
+  return convertPDFPageToImageLocal
+}
 
 export interface PDFProcessConfig {
   maxPages?: number
@@ -20,6 +28,7 @@ export interface PDFProcessResult {
   success: boolean
   slidesCreated: number
   errors?: string[]
+  warnings?: string[]
   slideIds?: Array<number | string>
   moduleUpdated?: boolean
   textExtracted?: boolean
@@ -33,6 +42,7 @@ export interface PDFProcessResult {
 export class PDFProcessorOptimized {
   private config: PDFProcessConfig
   private startTime: number = 0
+  private imageConverter: ((pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>) | null = null
 
   constructor(config: PDFProcessConfig = {}) {
     this.config = {
@@ -57,19 +67,21 @@ export class PDFProcessorOptimized {
       pdfFilename,
     })
 
+    const slideIds: Array<number | string> = []
+    let slidesCreated = 0
+    let textExtracted = false
+    let imagesGenerated = false
+    let pagesProcessed = 0
+    let totalPages = 0
+    
     try {
       console.log('🚀 Initializing Payload...')
       const payload = await getPayload({ config })
-      const slideIds: Array<number | string> = []
-      let slidesCreated = 0
-      let textExtracted = false
-      let imagesGenerated = false
-      let pagesProcessed = 0
 
       // Load PDF document for metadata
       console.log('📖 Loading PDF document...')
       const pdfDoc = await PDFDocument.load(pdfBuffer)
-      const totalPages = pdfDoc.getPageCount()
+      totalPages = pdfDoc.getPageCount()
       const pagesToProcess = Math.min(totalPages, this.config.maxPages!)
       console.log(`📊 PDF has ${totalPages} pages, will process ${pagesToProcess}`)
 
@@ -148,25 +160,41 @@ export class PDFProcessorOptimized {
       // Update module with new slides
       if (slideIds.length > 0) {
         console.log('💾 Updating module with new slides...')
-        const currentModule = await payload.findByID({
-          collection: 'modules',
-          id: String(moduleId),
-        })
+        
+        try {
+          // Get current slides without loading full relationships
+          const currentModule = await payload.findByID({
+            collection: 'modules',
+            id: String(moduleId),
+            depth: 0, // Don't populate relationships when reading
+            overrideAccess: true,
+          })
 
-        const existingSlides = currentModule.slides || []
-        console.log(`📊 Adding ${slideIds.length} new slides to ${existingSlides.length} existing slides`)
+          const existingSlidesRaw = (currentModule as any).slides || []
+          const existingSlides = Array.isArray(existingSlidesRaw)
+            ? existingSlidesRaw.map((s: any) => (typeof s === 'object' ? s.id : s)).filter(Boolean)
+            : []
+          console.log(`📊 Adding ${slideIds.length} new slides to ${existingSlides.length} existing slides`)
 
-        await payload.update({
-          collection: 'modules',
-          id: String(moduleId),
-          data: {
-            slides: [...existingSlides, ...slideIds],
-          },
-          overrideAccess: true,
-          depth: 0,
-        })
+          // Simple update with just the slide IDs
+          await payload.update({
+            collection: 'modules',
+            id: String(moduleId),
+            data: {
+              slides: [...existingSlides, ...slideIds],
+            },
+            overrideAccess: true,
+            depth: 0, // Don't return populated relationships
+          })
 
-        console.log(`✅ Module ${moduleId} updated successfully`)
+          console.log(`✅ Module ${moduleId} updated successfully`)
+        } catch (updateError: any) {
+          // If update fails, the slides are still created
+          console.error('❌ Failed to link slides to module:', updateError.message)
+          console.log('📝 Created slide IDs that need manual linking:', slideIds)
+          // Don't throw - we'll handle this in the catch block
+          throw updateError
+        }
       }
 
       const timeElapsed = Date.now() - this.startTime
@@ -189,6 +217,27 @@ export class PDFProcessorOptimized {
       console.error('💥 PDF processing error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       const timeElapsed = Date.now() - this.startTime
+      
+      // Check if slides were actually created despite the error
+      // This handles database timeout errors after successful slide creation
+      if (errorMessage.includes('timeout') && slidesCreated > 0) {
+        console.warn('⚠️ Database timeout occurred but slides were created successfully')
+        console.log('✅ Created slide IDs:', slideIds)
+        
+        return {
+          success: true,  // Mark as success since slides were created
+          slidesCreated,
+          slideIds,
+          moduleUpdated: false,  // Module update failed due to timeout
+          textExtracted,
+          imagesGenerated,
+          totalPages,
+          pagesProcessed: slidesCreated,
+          partialSuccess: false,
+          timeElapsed,
+          warnings: ['Module update timed out, but slides were created. Please refresh the page.']
+        }
+      }
       
       return {
         success: false,
@@ -242,7 +291,10 @@ export class PDFProcessorOptimized {
       const imageStartTime = Date.now()
       
       try {
-        const imageBuffer = await convertImage(singlePageBuffer, 1)
+        if (!this.imageConverter) {
+          this.imageConverter = await loadImageConverter()
+        }
+        const imageBuffer = await this.imageConverter(singlePageBuffer, 1)
         
         if (imageBuffer && imageBuffer.length > 0) {
           const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`

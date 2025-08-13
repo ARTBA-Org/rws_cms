@@ -212,7 +212,7 @@ export default buildConfig({
       min: 5, // Minimum number of idle clients maintained in the pool
       idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
       connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
-      statement_timeout: 60000, // Statement timeout in milliseconds (60 seconds)
+      statement_timeout: 300000, // Statement timeout in milliseconds (5 minutes for PDF processing)
     },
   }),
   sharp,

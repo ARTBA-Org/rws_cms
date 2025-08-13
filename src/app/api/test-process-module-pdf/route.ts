@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '../../../payload.config'
+import path from 'path'
+import { promises as fs } from 'fs'
 
 // Dev-only helper to trigger PDF→Slides using the Local API
 export async function POST(request: NextRequest) {
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
     const payload = await getPayload({ config })
 
     // Load module
-    const mod: any = await payload.findByID({ collection: 'modules', id: String(moduleId) })
+    const mod: any = await payload.findByID({ collection: 'modules', id: String(moduleId), overrideAccess: true, depth: 0 })
     console.log('📋 Debug: Module data:', {
       id: mod.id,
       title: mod.title,
@@ -88,8 +90,10 @@ export async function POST(request: NextRequest) {
       mimeType: mediaDoc.mimeType,
     })
 
+    // Dynamically detect the actual port from the request
+    const host = request.headers.get('host')
     const SERVER_ORIGIN =
-      process.env.PAYLOAD_PUBLIC_SERVER_URL || `http://localhost:${process.env.PORT || 3001}`
+      process.env.PAYLOAD_PUBLIC_SERVER_URL || (host?.startsWith('http') ? host : `http://${host}`)
     const absoluteUrl = mediaDoc.url.startsWith('http')
       ? mediaDoc.url
       : `${SERVER_ORIGIN}${mediaDoc.url}`
@@ -98,20 +102,31 @@ export async function POST(request: NextRequest) {
     console.log('📋 Server origin:', SERVER_ORIGIN)
     
     const cookie = request.headers.get('cookie') || ''
-    const res = await fetch(absoluteUrl, { headers: cookie ? { cookie } : undefined })
-    if (!res.ok) {
-      console.error(`❌ Failed to fetch PDF: ${res.status} ${res.statusText}`)
-      console.error('URL attempted:', absoluteUrl)
-      return NextResponse.json(
-        { error: `Failed to fetch PDF: ${res.status} ${res.statusText}`, url: absoluteUrl },
-        { status: 502 },
-      )
+    let pdfBuffer: Buffer | null = null
+    try {
+      const res = await fetch(absoluteUrl, { headers: cookie ? { cookie } : undefined })
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      console.log('✅ PDF fetched successfully, size:', res.headers.get('content-length'))
+      const ab = await res.arrayBuffer()
+      pdfBuffer = Buffer.from(ab)
+    } catch (fetchErr) {
+      console.warn('⚠️ HTTP fetch failed, trying filesystem fallback:', fetchErr)
+      try {
+        // Fallback to local file system when using local storage adapter
+        const filename = mediaDoc.filename || 'uploaded.pdf'
+        const filePath = path.join(process.cwd(), 'media', filename)
+        pdfBuffer = await fs.readFile(filePath)
+        console.log('✅ Loaded PDF from filesystem:', filePath)
+      } catch (fsErr) {
+        console.error('❌ Failed to load PDF from both HTTP and filesystem:', fsErr)
+        return NextResponse.json(
+          { error: `Failed to fetch PDF: ${String(fetchErr)}`, url: absoluteUrl },
+          { status: 502 },
+        )
+      }
     }
-    console.log('✅ PDF fetched successfully, size:', res.headers.get('content-length'))
 
-    const ab = await res.arrayBuffer()
-    const pdfBuffer = Buffer.from(ab)
-    console.log('✅ PDF buffer created, size:', pdfBuffer.length)
+    console.log('✅ PDF buffer ready, size:', pdfBuffer.length)
 
     let result
     
