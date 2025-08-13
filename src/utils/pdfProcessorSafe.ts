@@ -232,40 +232,36 @@ export class PDFProcessor {
   }
 
   /**
-   * Detect slide type based on content
+   * Detect slide type based on content (using only existing types)
    */
   private detectSlideType(text: string): string {
     const lowerText = text.toLowerCase()
     
-    // Check for title/cover page indicators
-    if (lowerText.includes('title') || lowerText.includes('cover') || 
-        lowerText.includes('presentation') || lowerText.includes('prepared by')) {
-      return 'title'
+    // Check for quiz indicators
+    if (lowerText.includes('quiz') || lowerText.includes('question') || 
+        lowerText.includes('answer')) {
+      return 'quiz'
     }
     
-    // Check for conclusion indicators
-    if (lowerText.includes('conclusion') || lowerText.includes('summary') || 
-        lowerText.includes('thank you') || lowerText.includes('questions')) {
-      return 'conclusion'
+    // Check for reference indicators
+    if (lowerText.includes('reference') || lowerText.includes('bibliography') || 
+        lowerText.includes('citation') || lowerText.includes('source')) {
+      return 'reference'
     }
     
-    // Check for section headers
-    if (lowerText.includes('introduction') || lowerText.includes('overview') ||
-        lowerText.includes('agenda') || lowerText.includes('outline')) {
-      return 'section'
+    // Check for resources indicators
+    if (lowerText.includes('resource') || lowerText.includes('link') ||
+        lowerText.includes('download') || lowerText.includes('material')) {
+      return 'resources'
     }
 
-    // Check for bullet points or lists
-    if (text.includes('•') || text.includes('►') || text.includes('▪') ||
-        /^\s*[-*]\s+/m.test(text) || /^\s*\d+\.\s+/m.test(text)) {
-      return 'bullets'
+    // Check for video indicators
+    if (lowerText.includes('video') || lowerText.includes('watch') ||
+        lowerText.includes('youtube') || lowerText.includes('vimeo')) {
+      return 'video'
     }
 
-    // Check for images/charts (usually less text)
-    if (text.length < 100) {
-      return 'image'
-    }
-
+    // Default to regular for everything else
     return 'regular'
   }
 }
