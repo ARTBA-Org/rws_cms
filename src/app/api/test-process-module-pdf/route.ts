@@ -10,7 +10,13 @@ export async function POST(request: NextRequest) {
   // Removed production check - PDF processing is now available in deployed environments
 
   try {
-    const { moduleId, mediaId, useOptimized = true, useChunked = false, processorConfig = {} } = await request.json()
+    const {
+      moduleId,
+      mediaId,
+      useOptimized = true,
+      useChunked = false,
+      processorConfig = {},
+    } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
     }
@@ -18,7 +24,12 @@ export async function POST(request: NextRequest) {
     const payload = await getPayload({ config })
 
     // Load module
-    const mod: any = await payload.findByID({ collection: 'modules', id: String(moduleId), overrideAccess: true, depth: 0 })
+    const mod: any = await payload.findByID({
+      collection: 'modules',
+      id: String(moduleId),
+      overrideAccess: true,
+      depth: 0,
+    })
     console.log('📋 Debug: Module data:', {
       id: mod.id,
       title: mod.title,
@@ -97,10 +108,10 @@ export async function POST(request: NextRequest) {
     const absoluteUrl = mediaDoc.url.startsWith('http')
       ? mediaDoc.url
       : `${SERVER_ORIGIN}${mediaDoc.url}`
-    
+
     console.log('📋 Fetching PDF from URL:', absoluteUrl)
     console.log('📋 Server origin:', SERVER_ORIGIN)
-    
+
     const cookie = request.headers.get('cookie') || ''
     let pdfBuffer: Buffer | null = null
     try {
@@ -129,37 +140,49 @@ export async function POST(request: NextRequest) {
     console.log('✅ PDF buffer ready, size:', pdfBuffer.length)
 
     let result
-    
+
     if (useChunked) {
       console.log('📋 Using chunked PDF processor...')
       const { PDFProcessorChunked } = await import('../../../utils/pdfProcessorChunked')
-      
+
       const processor = new PDFProcessorChunked({
         immediatePages: processorConfig.immediatePages || 3,
         chunkSize: processorConfig.chunkSize || 5,
-        enableImages: processorConfig.enableImages !== false
+        enableImages: processorConfig.enableImages !== false,
       })
-      
+
       result = await processor.processPDFChunked(
         pdfBuffer,
         String(moduleId),
-        mediaDoc.filename || 'uploaded.pdf'
+        mediaDoc.filename || 'uploaded.pdf',
       )
     } else if (useOptimized) {
       console.log('📋 Using optimized PDF processor...')
       const { PDFProcessorOptimized } = await import('../../../utils/pdfProcessorOptimized')
-      
+
       // Default config for Lambda environment
       const defaultConfig = {
-        maxPages: 5,          // Process up to 5 pages
-        timeoutMs: 25000,     // 25 seconds (leaving 3s buffer for 28s Lambda timeout)
-        enableImages: true,   // Generate images
-        batchSize: 1,         // Process one page at a time
+        maxPages: 5,
+        timeoutMs: 25000, // keep under Amplify SSR 28s ceiling
+        enableImages: true,
+        batchSize: 1,
       }
-      
-      const finalConfig = { ...defaultConfig, ...processorConfig }
+
+      const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
+      const merged = { ...defaultConfig, ...processorConfig }
+
+      // Enforce safe caps in server to avoid SSR/Lambda timeout and long requests
+      const finalConfig = {
+        ...merged,
+        timeoutMs: Math.min(Number(merged.timeoutMs || defaultConfig.timeoutMs), 25000),
+        maxPages: isLambda
+          ? Math.min(Number(merged.maxPages || 2), 2)
+          : Number(merged.maxPages || 5),
+        batchSize: 1,
+      }
+
       console.log('⚙️ Processor configuration:', finalConfig)
-      
+
       const processor = new PDFProcessorOptimized(finalConfig)
       result = await processor.processPDFToSlides(
         pdfBuffer,
@@ -176,7 +199,7 @@ export async function POST(request: NextRequest) {
         mediaDoc.filename || 'uploaded.pdf',
       )
     }
-    
+
     console.log('✅ PDF processing completed:', result)
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 })

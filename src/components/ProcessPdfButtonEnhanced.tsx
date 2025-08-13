@@ -8,7 +8,7 @@ export default function ProcessPdfButtonEnhanced() {
   const [config, setConfig] = useState({
     maxPages: 5,
     enableImages: true,
-    useOptimized: true
+    useOptimized: true,
   })
 
   const moduleId = useMemo(() => {
@@ -33,7 +33,7 @@ export default function ProcessPdfButtonEnhanced() {
     try {
       // Configure timeout based on settings
       const timeoutMs = config.enableImages ? 55000 : 30000
-      
+
       const response = await fetch('/api/test-process-module-pdf', {
         method: 'POST',
         headers: {
@@ -46,25 +46,31 @@ export default function ProcessPdfButtonEnhanced() {
             maxPages: config.maxPages,
             timeoutMs,
             enableImages: config.enableImages,
-            batchSize: 1
-          }
+            batchSize: 1,
+          },
         }),
       })
 
-      const result = await response.json()
+      let result: any = {}
+      try {
+        result = await response.json()
+      } catch {
+        // Handle empty body (e.g., 204/timeout) gracefully
+        result = { success: false, error: 'Empty response from server' }
+      }
       console.log('📋 API Response:', { status: response.status, result })
 
       if (response.ok && result.success) {
         const { slidesCreated, pagesProcessed, totalPages, partialSuccess, timeElapsed } = result
-        
+
         let message = `✅ Successfully created ${slidesCreated} slides`
-        
+
         if (partialSuccess) {
           message = `⚠️ Partial success: Created ${slidesCreated} slides from ${pagesProcessed}/${totalPages} pages`
         } else if (pagesProcessed === totalPages) {
           message = `✅ Complete! All ${slidesCreated} slides created from ${totalPages} pages`
         }
-        
+
         if (timeElapsed) {
           message += ` (${(timeElapsed / 1000).toFixed(1)}s)`
         }
@@ -95,12 +101,14 @@ export default function ProcessPdfButtonEnhanced() {
 
   if (!moduleId || moduleId === 'create') {
     return (
-      <div style={{ 
-        padding: '16px', 
-        background: '#f8f9fa', 
-        borderRadius: '8px', 
-        margin: '16px 0' 
-      }}>
+      <div
+        style={{
+          padding: '16px',
+          background: '#f8f9fa',
+          borderRadius: '8px',
+          margin: '16px 0',
+        }}
+      >
         <p style={{ margin: 0, color: '#6c757d', fontSize: '14px' }}>
           💡 Save the module first, then you can process PDFs into slides.
         </p>
@@ -109,36 +117,44 @@ export default function ProcessPdfButtonEnhanced() {
   }
 
   return (
-    <div style={{ 
-      padding: '16px', 
-      background: '#f8f9fa', 
-      borderRadius: '8px', 
-      margin: '16px 0' 
-    }}>
-      <h4 style={{ 
-        margin: '0 0 12px 0', 
-        fontSize: '16px', 
-        fontWeight: '600' 
-      }}>
+    <div
+      style={{
+        padding: '16px',
+        background: '#f8f9fa',
+        borderRadius: '8px',
+        margin: '16px 0',
+      }}
+    >
+      <h4
+        style={{
+          margin: '0 0 12px 0',
+          fontSize: '16px',
+          fontWeight: '600',
+        }}
+      >
         PDF Processing
       </h4>
 
-      <p style={{ 
-        margin: '0 0 16px 0', 
-        color: '#6c757d', 
-        fontSize: '14px' 
-      }}>
+      <p
+        style={{
+          margin: '0 0 16px 0',
+          color: '#6c757d',
+          fontSize: '14px',
+        }}
+      >
         Upload a PDF file here, then use the processing button below to convert it into slides.
       </p>
 
       {/* Configuration Options */}
-      <div style={{
-        marginBottom: '16px',
-        padding: '12px',
-        background: 'white',
-        borderRadius: '4px',
-        border: '1px solid #dee2e6'
-      }}>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '12px',
+          background: 'white',
+          borderRadius: '4px',
+          border: '1px solid #dee2e6',
+        }}
+      >
         <div style={{ marginBottom: '8px', fontSize: '14px' }}>
           <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
             <input
@@ -158,11 +174,11 @@ export default function ProcessPdfButtonEnhanced() {
               value={config.maxPages}
               onChange={(e) => setConfig({ ...config, maxPages: Number(e.target.value) })}
               disabled={isProcessing}
-              style={{ 
+              style={{
                 marginLeft: '8px',
                 padding: '4px 8px',
                 borderRadius: '4px',
-                border: '1px solid #ced4da'
+                border: '1px solid #ced4da',
               }}
             >
               <option value={2}>2 pages (fast)</option>
@@ -187,7 +203,7 @@ export default function ProcessPdfButtonEnhanced() {
           fontWeight: '500',
           cursor: isProcessing ? 'not-allowed' : 'pointer',
           marginBottom: message || isProcessing ? '12px' : '0',
-          transition: 'background-color 0.2s'
+          transition: 'background-color 0.2s',
         }}
       >
         {isProcessing ? '⏳ Processing...' : '🚀 Process PDF into Slides'}
@@ -196,27 +212,33 @@ export default function ProcessPdfButtonEnhanced() {
       {/* Progress Bar */}
       {isProcessing && (
         <div style={{ marginTop: '16px' }}>
-          <div style={{
-            width: '100%',
-            height: '20px',
-            backgroundColor: '#e9ecef',
-            borderRadius: '10px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: `${progress || 10}%`,
-              height: '100%',
-              backgroundColor: '#007bff',
-              transition: 'width 0.3s ease',
-              animation: progress === 0 ? 'pulse 2s infinite' : 'none'
-            }} />
+          <div
+            style={{
+              width: '100%',
+              height: '20px',
+              backgroundColor: '#e9ecef',
+              borderRadius: '10px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: `${progress || 10}%`,
+                height: '100%',
+                backgroundColor: '#007bff',
+                transition: 'width 0.3s ease',
+                animation: progress === 0 ? 'pulse 2s infinite' : 'none',
+              }}
+            />
           </div>
-          <p style={{
-            marginTop: '8px',
-            fontSize: '12px',
-            color: '#6c757d',
-            textAlign: 'center'
-          }}>
+          <p
+            style={{
+              marginTop: '8px',
+              fontSize: '12px',
+              color: '#6c757d',
+              textAlign: 'center',
+            }}
+          >
             Processing PDF pages...
           </p>
         </div>
@@ -224,31 +246,36 @@ export default function ProcessPdfButtonEnhanced() {
 
       {/* Status Message */}
       {message && (
-        <div style={{
-          padding: '12px',
-          backgroundColor: message.includes('❌')
-            ? '#f8d7da'
-            : message.includes('✅')
-              ? '#d4edda'
-              : message.includes('⚠️')
-                ? '#fff3cd'
-                : '#d1ecf1',
-          color: message.includes('❌')
-            ? '#721c24'
-            : message.includes('✅')
-              ? '#155724'
-              : message.includes('⚠️')
-                ? '#856404'
-                : '#0c5460',
-          borderRadius: '4px',
-          fontSize: '14px',
-          border: `1px solid ${
-            message.includes('❌') ? '#f5c6cb' : 
-            message.includes('✅') ? '#c3e6cb' : 
-            message.includes('⚠️') ? '#ffeeba' : 
-            '#bee5eb'
-          }`
-        }}>
+        <div
+          style={{
+            padding: '12px',
+            backgroundColor: message.includes('❌')
+              ? '#f8d7da'
+              : message.includes('✅')
+                ? '#d4edda'
+                : message.includes('⚠️')
+                  ? '#fff3cd'
+                  : '#d1ecf1',
+            color: message.includes('❌')
+              ? '#721c24'
+              : message.includes('✅')
+                ? '#155724'
+                : message.includes('⚠️')
+                  ? '#856404'
+                  : '#0c5460',
+            borderRadius: '4px',
+            fontSize: '14px',
+            border: `1px solid ${
+              message.includes('❌')
+                ? '#f5c6cb'
+                : message.includes('✅')
+                  ? '#c3e6cb'
+                  : message.includes('⚠️')
+                    ? '#ffeeba'
+                    : '#bee5eb'
+            }`,
+          }}
+        >
           {message}
           {message.includes('⚠️') && (
             <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
