@@ -1,7 +1,7 @@
 import { PDFDocument } from 'pdf-lib'
 import { getPayload } from 'payload'
 import config from '../payload.config'
-import * as pdfParse from 'pdf-parse'
+import { extractTextFromPDF } from './pdfTextExtractor'
 
 export interface PDFProcessResult {
   success: boolean
@@ -46,12 +46,9 @@ export class PDFProcessor {
 
       // Extract text from entire PDF
       console.log('📝 Extracting text from PDF...')
-      let pdfText: any = null
-      try {
-        pdfText = await pdfParse(pdfBuffer, {
-          max: totalPages, // Process all pages
-          version: 'v2.0.550'
-        })
+      const pdfText = await extractTextFromPDF(pdfBuffer)
+      
+      if (pdfText && pdfText.text) {
         textExtracted = true
         console.log(`✅ Extracted ${pdfText.text.length} characters of text`)
         console.log(`📄 PDF Info:`, {
@@ -59,8 +56,8 @@ export class PDFProcessor {
           info: pdfText.info,
           metadata: pdfText.metadata,
         })
-      } catch (textError) {
-        console.warn('⚠️ Text extraction failed:', textError)
+      } else {
+        console.warn('⚠️ Text extraction returned no text')
       }
 
       // Process each page individually
