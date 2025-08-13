@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   // Removed production check - PDF processing is now available in deployed environments
 
   try {
-    const { moduleId, mediaId } = await request.json()
+    const { moduleId, mediaId, useOptimized = true, processorConfig = {} } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
     }
@@ -113,21 +113,40 @@ export async function POST(request: NextRequest) {
     const pdfBuffer = Buffer.from(ab)
     console.log('✅ PDF buffer created, size:', pdfBuffer.length)
 
-    console.log('📋 Importing PDFProcessor...')
-    // Use processor with Puppeteer image generation
-    const { PDFProcessor } = await import('../../../utils/pdfProcessorWithImages')
-    console.log('✅ PDFProcessor imported successfully')
+    let result
     
-    console.log('📋 Creating PDFProcessor instance...')
-    const processor = new PDFProcessor()
-    console.log('✅ PDFProcessor instance created')
+    if (useOptimized) {
+      console.log('📋 Using optimized PDF processor...')
+      const { PDFProcessorOptimized } = await import('../../../utils/pdfProcessorOptimized')
+      
+      // Default config for Lambda environment
+      const defaultConfig = {
+        maxPages: 5,          // Process up to 5 pages
+        timeoutMs: 25000,     // 25 seconds (leaving 3s buffer for 28s Lambda timeout)
+        enableImages: true,   // Generate images
+        batchSize: 1,         // Process one page at a time
+      }
+      
+      const finalConfig = { ...defaultConfig, ...processorConfig }
+      console.log('⚙️ Processor configuration:', finalConfig)
+      
+      const processor = new PDFProcessorOptimized(finalConfig)
+      result = await processor.processPDFToSlides(
+        pdfBuffer,
+        String(moduleId),
+        mediaDoc.filename || 'uploaded.pdf',
+      )
+    } else {
+      console.log('📋 Using standard PDF processor with images...')
+      const { PDFProcessor } = await import('../../../utils/pdfProcessorWithImages')
+      const processor = new PDFProcessor()
+      result = await processor.processPDFToSlides(
+        pdfBuffer,
+        String(moduleId),
+        mediaDoc.filename || 'uploaded.pdf',
+      )
+    }
     
-    console.log('📋 Starting PDF processing...')
-    const result = await processor.processPDFToSlides(
-      pdfBuffer,
-      String(moduleId),
-      mediaDoc.filename || 'uploaded.pdf',
-    )
     console.log('✅ PDF processing completed:', result)
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 })
