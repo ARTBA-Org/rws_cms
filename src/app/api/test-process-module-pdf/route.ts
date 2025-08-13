@@ -114,8 +114,8 @@ export async function POST(request: NextRequest) {
     console.log('✅ PDF buffer created, size:', pdfBuffer.length)
 
     console.log('📋 Importing PDFProcessor...')
-    // Use enhanced processor for text extraction
-    const { PDFProcessor } = await import('../../../utils/pdfProcessorEnhanced')
+    // Use safe processor that works with existing database schema
+    const { PDFProcessor } = await import('../../../utils/pdfProcessorSafe')
     console.log('✅ PDFProcessor imported successfully')
     
     console.log('📋 Creating PDFProcessor instance...')

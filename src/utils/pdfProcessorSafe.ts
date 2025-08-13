@@ -15,15 +15,15 @@ export interface PDFProcessResult {
 
 export class PDFProcessor {
   /**
-   * Enhanced Lambda-compatible PDF processor that extracts text and generates images
-   * Uses pdf-parse for text extraction and cloud API for image generation
+   * Safe Lambda-compatible PDF processor that works with existing database schema
+   * Extracts text and creates meaningful slides without requiring new database fields
    */
   async processPDFToSlides(
     pdfBuffer: Buffer,
     moduleId: string,
     pdfFilename: string,
   ): Promise<PDFProcessResult> {
-    console.log('🔧 Enhanced PDFProcessor.processPDFToSlides called')
+    console.log('🔧 Safe PDFProcessor.processPDFToSlides called')
     console.log('📋 Parameters:', {
       bufferSize: pdfBuffer.length,
       moduleId,
@@ -36,7 +36,6 @@ export class PDFProcessor {
       const slideIds: Array<number | string> = []
       let slidesCreated = 0
       let textExtracted = false
-      let imagesGenerated = false
 
       // Load PDF document for metadata
       console.log('📖 Loading PDF document...')
@@ -73,7 +72,6 @@ export class PDFProcessor {
           let pageText = ''
           if (pdfText && pdfText.text) {
             // Simple page text extraction - splits by common page markers
-            // For more accurate per-page text, we'd need a more sophisticated approach
             const allText = pdfText.text
             const textPages = allText.split(/\f|\n{3,}/) // Split by form feed or multiple newlines
             if (textPages[pageNum - 1]) {
@@ -87,80 +85,24 @@ export class PDFProcessor {
             console.log(`📝 Extracted ${pageText.length} characters for page ${pageNum}`)
           }
 
-          // Generate title and description from extracted text
+          // Generate enhanced title and description from extracted text
           const title = this.generateTitle(pageText, pdfFilename, pageNum)
-          const description = this.generateDescription(pageText, pageNum, totalPages, width, height)
+          const enhancedDescription = this.generateEnhancedDescription(
+            pageText, 
+            pageNum, 
+            totalPages, 
+            width, 
+            height
+          )
 
-          // For image generation, we have several options:
-          // 1. Use a cloud service (like Bannerbear, Placid, or HTML/CSS to Image API)
-          // 2. Generate a placeholder with extracted text
-          // 3. Store the PDF page as a separate PDF and convert client-side
-          
-          // Option 3: Extract single page as PDF (can be converted client-side later)
-          let singlePageBuffer: Buffer | null = null
-          try {
-            const singlePageDoc = await PDFDocument.create()
-            const [copiedPage] = await singlePageDoc.copyPages(pdfDoc, [pageNum - 1])
-            singlePageDoc.addPage(copiedPage)
-            const pdfBytes = await singlePageDoc.save()
-            singlePageBuffer = Buffer.from(pdfBytes)
-            console.log(`📄 Created single-page PDF (${singlePageBuffer.length} bytes)`)
-          } catch (pageError) {
-            console.warn(`⚠️ Failed to extract page ${pageNum} as PDF:`, pageError)
-          }
-
-          // Upload single-page PDF as media (for client-side conversion later)
-          let mediaId = null
-          if (singlePageBuffer) {
-            try {
-              const mediaDoc = await payload.create({
-                collection: 'media',
-                data: {
-                  alt: `Page ${pageNum} from ${pdfFilename}`,
-                },
-                file: {
-                  data: singlePageBuffer,
-                  mimetype: 'application/pdf',
-                  name: `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.pdf`,
-                  size: singlePageBuffer.length,
-                },
-                overrideAccess: true,
-                depth: 0,
-              })
-              mediaId = mediaDoc.id
-              console.log(`✅ Page PDF uploaded with ID: ${mediaId}`)
-            } catch (uploadError) {
-              console.warn(`⚠️ Failed to upload page ${pageNum} PDF:`, uploadError)
-            }
-          }
-
-          // Create slide with extracted text and page PDF
+          // Create slide with only existing fields
           console.log(`🎯 Creating slide for page ${pageNum}...`)
           
-          // Base slide data that should always work
           const slideData: any = {
             title,
-            description,
+            description: enhancedDescription, // Put extracted text in description
             type: this.detectSlideType(pageText),
             urls: [],
-          }
-
-          // Try to add new fields, but don't fail if they don't exist yet
-          try {
-            // These fields might not exist in production yet
-            slideData.extractedText = pageText.substring(0, 5000) // Limit text length
-            slideData.pageNumber = pageNum
-            slideData.pageDimensions = {
-              width: Math.round(width),
-              height: Math.round(height),
-            }
-            
-            // Add media reference if we have a page PDF
-            if (mediaId) {
-              slideData.pdfPage = mediaId // Store page PDF for later conversion
-            }
-          } catch (fieldError) {
-            console.warn('⚠️ Some new fields not available yet, using base fields only')
           }
 
           const slide = await payload.create({
@@ -207,7 +149,7 @@ export class PDFProcessor {
         slideIds,
         moduleUpdated: true,
         textExtracted,
-        imagesGenerated: false, // Images need client-side conversion
+        imagesGenerated: false,
       }
       
     } catch (error) {
@@ -263,28 +205,30 @@ export class PDFProcessor {
   }
 
   /**
-   * Generate a description from extracted text
+   * Generate an enhanced description that includes extracted text
    */
-  private generateDescription(
+  private generateEnhancedDescription(
     text: string, 
     pageNum: number, 
     totalPages: number,
     width: number,
     height: number
   ): string {
-    const dimensions = `Page ${pageNum} of ${totalPages} (${Math.round(width)}x${Math.round(height)}px)`
+    const pageInfo = `Page ${pageNum} of ${totalPages} (${Math.round(width)}x${Math.round(height)}px)`
     
     if (!text || text.length < 20) {
-      return dimensions
+      return pageInfo
     }
 
-    // Get first 200 characters of meaningful text
+    // Include more text in the description since we can't use extractedText field yet
+    const maxTextLength = 1000 // Store more text in description
     const cleanText = text
       .replace(/\s+/g, ' ')
       .trim()
-      .substring(0, 200)
+      .substring(0, maxTextLength)
 
-    return `${dimensions}\n\n${cleanText}${text.length > 200 ? '...' : ''}`
+    // Format: Page info, then extracted content
+    return `${pageInfo}\n\n--- Extracted Content ---\n${cleanText}${text.length > maxTextLength ? '...' : ''}`
   }
 
   /**
