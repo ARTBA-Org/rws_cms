@@ -247,22 +247,31 @@ export class PDFProcessor {
   private detectSlideType(text: string): string {
     const lowerText = text.toLowerCase()
     
-    if (lowerText.includes('title') || lowerText.includes('cover')) {
-      return 'title'
+    // Check for quiz indicators
+    if (lowerText.includes('quiz') || lowerText.includes('question') || 
+        lowerText.includes('answer')) {
+      return 'quiz'
     }
     
-    if (lowerText.includes('conclusion') || lowerText.includes('summary')) {
-      return 'conclusion'
+    // Check for reference indicators
+    if (lowerText.includes('reference') || lowerText.includes('bibliography') || 
+        lowerText.includes('citation') || lowerText.includes('source')) {
+      return 'reference'
     }
     
-    if (text.includes('•') || text.includes('►') || /^\s*[-*]\s+/m.test(text)) {
-      return 'bullets'
+    // Check for resources indicators
+    if (lowerText.includes('resource') || lowerText.includes('link') ||
+        lowerText.includes('download') || lowerText.includes('material')) {
+      return 'resources'
     }
 
-    if (text.length < 100) {
-      return 'image'
+    // Check for video indicators
+    if (lowerText.includes('video') || lowerText.includes('watch') ||
+        lowerText.includes('youtube') || lowerText.includes('vimeo')) {
+      return 'video'
     }
 
+    // Default to regular for everything else
     return 'regular'
   }
 }

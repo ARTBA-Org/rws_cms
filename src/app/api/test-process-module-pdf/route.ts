@@ -114,8 +114,8 @@ export async function POST(request: NextRequest) {
     console.log('✅ PDF buffer created, size:', pdfBuffer.length)
 
     console.log('📋 Importing PDFProcessor...')
-    // Use safe processor that works with existing database schema
-    const { PDFProcessor } = await import('../../../utils/pdfProcessorSafe')
+    // Use processor with Puppeteer image generation
+    const { PDFProcessor } = await import('../../../utils/pdfProcessorWithImages')
     console.log('✅ PDFProcessor imported successfully')
     
     console.log('📋 Creating PDFProcessor instance...')
