@@ -2,9 +2,22 @@ import { withPayload } from '@payloadcms/next/withPayload'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // API route configuration for longer timeouts
+  api: {
+    responseLimit: false,
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+  // Server runtime configuration
+  serverRuntimeConfig: {
+    functionTimeout: 60, // 60 seconds
+  },
   // Disable automatic installation of SWC binaries
   experimental: {
     swcPlugins: [],
+    // Increase timeout for API routes in milliseconds
+    proxyTimeout: 60000, // 60 seconds
   },
   async redirects() {
     return [

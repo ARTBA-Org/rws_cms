@@ -1,28 +1,33 @@
 version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - nvm use 20
-        - echo "Converting fix-amplify-build.js to CommonJS format for compatibility"
-        - mv scripts/fix-amplify-build.js scripts/fix-amplify-build.mjs
-        - echo "Running automatic build fixes for Amplify deployment"
-        - node scripts/fix-amplify-build.mjs
-        - echo "Installing dependencies"
-        - npm install
-    build:
-      commands:
-        - echo "Starting build process with database connection skipped"
-        - echo "Setting production environment variables"
-        - export NODE_ENV=production
-        - export NEXT_TELEMETRY_DISABLED=1
-        - export NEXT_BUILD_SKIP_DB=true
-        - echo "Building Next.js application"
-        - NODE_OPTIONS=--no-warnings npm run build
-  artifacts:
-    baseDirectory: .next
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/* 
+applications:
+  - appRoot: .
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - nvm use 20
+            - echo "Converting fix-amplify-build.js to CommonJS format for compatibility"
+            - mv scripts/fix-amplify-build.js scripts/fix-amplify-build.mjs
+            - echo "Running automatic build fixes for Amplify deployment"
+            - node scripts/fix-amplify-build.mjs
+            - echo "Installing dependencies"
+            - npm install
+        build:
+          commands:
+            - echo "Starting build process with database connection skipped"
+            - echo "Setting production environment variables"
+            - export NODE_ENV=production
+            - export NEXT_TELEMETRY_DISABLED=1
+            - export NEXT_BUILD_SKIP_DB=true
+            - echo "Building Next.js application"
+            - NODE_OPTIONS=--no-warnings npm run build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+    serverlessFunction:
+      timeout: 60  # Lambda timeout in seconds
+      memorySize: 1024  # Lambda memory in MB 
