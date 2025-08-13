@@ -45,7 +45,7 @@ const Modules: CollectionConfig = {
       type: 'ui',
       admin: {
         components: {
-          Field: '@/components/ProcessPdfButton#default',
+          Field: '@/components/ProcessPdfButtonEnhanced#default',
         },
       },
     },

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   // Removed production check - PDF processing is now available in deployed environments
 
   try {
-    const { moduleId, mediaId, useOptimized = true, processorConfig = {} } = await request.json()
+    const { moduleId, mediaId, useOptimized = true, useChunked = false, processorConfig = {} } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
     }
@@ -115,7 +115,22 @@ export async function POST(request: NextRequest) {
 
     let result
     
-    if (useOptimized) {
+    if (useChunked) {
+      console.log('📋 Using chunked PDF processor...')
+      const { PDFProcessorChunked } = await import('../../../utils/pdfProcessorChunked')
+      
+      const processor = new PDFProcessorChunked({
+        immediatePages: processorConfig.immediatePages || 3,
+        chunkSize: processorConfig.chunkSize || 5,
+        enableImages: processorConfig.enableImages !== false
+      })
+      
+      result = await processor.processPDFChunked(
+        pdfBuffer,
+        String(moduleId),
+        mediaDoc.filename || 'uploaded.pdf'
+      )
+    } else if (useOptimized) {
       console.log('📋 Using optimized PDF processor...')
       const { PDFProcessorOptimized } = await import('../../../utils/pdfProcessorOptimized')
       
