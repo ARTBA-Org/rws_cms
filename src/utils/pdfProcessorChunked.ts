@@ -4,9 +4,9 @@ import config from '../payload.config'
 import { extractTextFromPDF } from './pdfTextExtractor'
 
 export interface ChunkConfig {
-  immediatePages: number  // Pages to process immediately (e.g., 3)
-  chunkSize: number      // Pages per background chunk (e.g., 5)
-  enableImages: boolean  // Whether to generate images
+  immediatePages: number // Pages to process immediately (e.g., 3)
+  chunkSize: number // Pages per background chunk (e.g., 5)
+  enableImages: boolean // Whether to generate images
 }
 
 export interface ChunkResult {
@@ -27,11 +27,13 @@ export interface ChunkResult {
 export class PDFProcessorChunked {
   private config: ChunkConfig
 
-  constructor(config: ChunkConfig = {
-    immediatePages: 3,
-    chunkSize: 5,
-    enableImages: true
-  }) {
+  constructor(
+    config: ChunkConfig = {
+      immediatePages: 3,
+      chunkSize: 5,
+      enableImages: true,
+    },
+  ) {
     this.config = config
   }
 
@@ -41,14 +43,14 @@ export class PDFProcessorChunked {
   async processPDFChunked(
     pdfBuffer: Buffer,
     moduleId: string,
-    pdfFilename: string
+    pdfFilename: string,
   ): Promise<ChunkResult> {
     console.log('📦 Chunked PDF Processor started')
     console.log('Configuration:', this.config)
 
     try {
       const payload = await getPayload({ config })
-      
+
       // Load PDF document
       const pdfDoc = await PDFDocument.load(pdfBuffer)
       const totalPages = pdfDoc.getPageCount()
@@ -66,13 +68,13 @@ export class PDFProcessorChunked {
         Math.min(this.config.immediatePages, totalPages),
         pdfDoc,
         pdfText,
-        payload
+        payload,
       )
 
       // PHASE 2: Queue remaining pages if any
       let queuedInfo = undefined
       const remainingPages = totalPages - this.config.immediatePages
-      
+
       if (remainingPages > 0) {
         queuedInfo = await this.queueRemainingPages(
           pdfBuffer,
@@ -80,16 +82,15 @@ export class PDFProcessorChunked {
           pdfFilename,
           this.config.immediatePages,
           totalPages,
-          payload
+          payload,
         )
       }
 
       return {
         success: true,
         immediate: immediateResult,
-        queued: queuedInfo
+        queued: queuedInfo,
       }
-
     } catch (error) {
       console.error('💥 Chunked processing error:', error)
       return {
@@ -97,9 +98,9 @@ export class PDFProcessorChunked {
         immediate: {
           slidesCreated: 0,
           slideIds: [],
-          pagesProcessed: 0
+          pagesProcessed: 0,
         },
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
       }
     }
   }
@@ -114,17 +115,17 @@ export class PDFProcessorChunked {
     pagesToProcess: number,
     pdfDoc: PDFDocument,
     pdfText: any,
-    payload: any
+    payload: any,
   ): Promise<{ slidesCreated: number; slideIds: Array<number | string>; pagesProcessed: number }> {
     console.log(`⚡ Processing ${pagesToProcess} pages immediately...`)
-    
+
     const slideIds: Array<number | string> = []
     let slidesCreated = 0
 
     for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
       try {
         console.log(`📄 Processing page ${pageNum}/${pagesToProcess}`)
-        
+
         // Get page info
         const page = pdfDoc.getPage(pageNum - 1)
         const { width, height } = page.getSize()
@@ -153,7 +154,16 @@ export class PDFProcessorChunked {
 
         const slide = await payload.create({
           collection: 'slides',
-          data: slideData,
+          data: {
+            ...slideData,
+            parent: Number(moduleId), // Set the parent relationship for nested docs
+            parent_id: Number(moduleId), // Set the parent_id for database field
+            source: {
+              pdfFilename,
+              pdfPage: pageNum,
+              module: Number(moduleId),
+            },
+          },
           overrideAccess: true,
           depth: 0,
         })
@@ -161,7 +171,6 @@ export class PDFProcessorChunked {
         console.log(`✅ Slide ${slide.id} created for page ${pageNum}`)
         slideIds.push(slide.id)
         slidesCreated++
-
       } catch (error) {
         console.error(`❌ Error processing page ${pageNum}:`, error)
       }
@@ -189,7 +198,7 @@ export class PDFProcessorChunked {
     return {
       slidesCreated,
       slideIds,
-      pagesProcessed: pagesToProcess
+      pagesProcessed: pagesToProcess,
     }
   }
 
@@ -202,13 +211,13 @@ export class PDFProcessorChunked {
     pdfFilename: string,
     startPage: number,
     totalPages: number,
-    payload: any
+    payload: any,
   ): Promise<{ chunks: number; totalPages: number; estimatedTime: number }> {
     console.log(`📋 Queueing pages ${startPage + 1} to ${totalPages} for background processing...`)
-    
+
     const remainingPages = totalPages - startPage
     const chunks = Math.ceil(remainingPages / this.config.chunkSize)
-    
+
     // Store processing job info
     // In a real implementation, this would create background jobs
     // For now, we'll store the job metadata
@@ -221,14 +230,14 @@ export class PDFProcessorChunked {
       chunkSize: this.config.chunkSize,
       enableImages: this.config.enableImages,
       status: 'queued',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     }
 
     // In production, you would:
     // 1. Store this in a jobs collection
     // 2. Trigger AWS Lambda/SQS/EventBridge
     // 3. Process chunks asynchronously
-    
+
     console.log('📦 Job queued:', jobData)
 
     // Estimate processing time
@@ -238,7 +247,7 @@ export class PDFProcessorChunked {
     return {
       chunks,
       totalPages: remainingPages,
-      estimatedTime
+      estimatedTime,
     }
   }
 
@@ -250,23 +259,23 @@ export class PDFProcessorChunked {
     moduleId: string,
     pdfFilename: string,
     startPage: number,
-    endPage: number
+    endPage: number,
   ): Promise<{ success: boolean; slidesCreated: number }> {
     console.log(`🔄 Processing chunk: pages ${startPage} to ${endPage}`)
-    
+
     try {
       const payload = await getPayload({ config })
       const pdfDoc = await PDFDocument.load(pdfBuffer)
       const pdfText = await extractTextFromPDF(pdfBuffer)
-      
+
       const slideIds: Array<number | string> = []
-      
+
       for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
         if (pageNum > pdfDoc.getPageCount()) break
-        
+
         // Process page (similar to immediate processing)
         // ... (implementation similar to processImmediatePages)
-        
+
         // This would include image generation since it's background
       }
 
@@ -290,14 +299,13 @@ export class PDFProcessorChunked {
 
       return {
         success: true,
-        slidesCreated: slideIds.length
+        slidesCreated: slideIds.length,
       }
-      
     } catch (error) {
       console.error('❌ Chunk processing error:', error)
       return {
         success: false,
-        slidesCreated: 0
+        slidesCreated: 0,
       }
     }
   }
@@ -306,10 +314,13 @@ export class PDFProcessorChunked {
     if (!text || text.length < 10) {
       return `${filename.replace('.pdf', '')} - Page ${pageNum}`
     }
-    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    const lines = text.split('\n').filter((line) => line.trim().length > 0)
     const firstLine = lines[0]?.trim() || ''
     if (firstLine.length > 5 && firstLine.length < 100) {
-      return firstLine.replace(/[^\w\s-.,!?]/g, '').replace(/\s+/g, ' ').trim()
+      return firstLine
+        .replace(/[^\w\s-.,!?]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
     }
     return `${filename.replace('.pdf', '')} - Page ${pageNum}`
   }
@@ -319,7 +330,7 @@ export class PDFProcessorChunked {
     pageNum: number,
     totalPages: number,
     width: number,
-    height: number
+    height: number,
   ): string {
     const pageInfo = `Page ${pageNum} of ${totalPages} (${Math.round(width)}x${Math.round(height)}px)`
     if (!text || text.length < 20) {

@@ -4,8 +4,8 @@ import { createParentField, createBreadcrumbsField } from '@payloadcms/plugin-ne
 const Slides: CollectionConfig = {
   slug: 'slides',
   trash: true, // Enable soft delete functionality
-  // Enable folders for better organization
-  folders: true,
+  // Folders temporarily disabled due to compatibility issue
+  // folders: true,
   admin: {
     useAsTitle: 'title',
   },

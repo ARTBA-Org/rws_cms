@@ -74,16 +74,11 @@ export interface Config {
     slides: Slide;
     exports: Export;
     'payload-jobs': PayloadJob;
-    folders: FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {
-    folders: {
-      documentsAndFolders: 'folders' | 'media' | 'slides';
-    };
-  };
+  collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -92,7 +87,6 @@ export interface Config {
     slides: SlidesSelect<false> | SlidesSelect<true>;
     exports: ExportsSelect<false> | ExportsSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
-    folders: FoldersSelect<false> | FoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -169,7 +163,6 @@ export interface Media {
   id: number;
   alt?: string | null;
   prefix?: string | null;
-  folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -202,73 +195,37 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "folders".
+ * via the `definition` "courses".
  */
-export interface FolderInterface {
-  id: number;
-  name: string;
-  folder?: (number | null) | FolderInterface;
-  documentsAndFolders?: {
-    docs?: (
-      | {
-          relationTo?: 'folders';
-          value: number | FolderInterface;
-        }
-      | {
-          relationTo?: 'media';
-          value: number | Media;
-        }
-      | {
-          relationTo?: 'slides';
-          value: number | Slide;
-        }
-    )[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  folderType?: ('media' | 'slides')[] | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "slides".
- */
-export interface Slide {
+export interface Course {
   id: number;
   title: string;
   /**
    * Auto-generated from title (editable)
    */
   slug: string;
-  source?: {
-    pdfFilename?: string | null;
-    pdfPage?: number | null;
-    module?: (number | null) | Module;
-  };
-  description?: string | null;
-  image?: (number | null) | Media;
-  type?: ('regular' | 'video' | 'quiz' | 'reference' | 'resources') | null;
-  urls?:
+  description: string;
+  learningObjectives?:
     | {
-        url?: string | null;
+        objective?: string | null;
         id?: string | null;
       }[]
     | null;
+  Thumbnail?: (number | null) | Media;
+  modules?: (number | Module)[] | null;
   /**
-   * Module this slide belongs to
+   * Parent course (for sub-courses)
    */
-  parent?: (number | null) | Module;
+  parent?: (number | null) | Course;
   breadcrumbs?:
     | {
-        doc?: (number | null) | Slide;
+        doc?: (number | null) | Course;
         url?: string | null;
         label?: string | null;
         id?: string | null;
       }[]
     | null;
   search_vector?: string | null;
-  folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -311,31 +268,36 @@ export interface Module {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "courses".
+ * via the `definition` "slides".
  */
-export interface Course {
+export interface Slide {
   id: number;
   title: string;
   /**
    * Auto-generated from title (editable)
    */
   slug: string;
-  description: string;
-  learningObjectives?:
+  source?: {
+    pdfFilename?: string | null;
+    pdfPage?: number | null;
+    module?: (number | null) | Module;
+  };
+  description?: string | null;
+  image?: (number | null) | Media;
+  type?: ('regular' | 'video' | 'quiz' | 'reference' | 'resources') | null;
+  urls?:
     | {
-        objective?: string | null;
+        url?: string | null;
         id?: string | null;
       }[]
     | null;
-  Thumbnail?: (number | null) | Media;
-  modules?: (number | Module)[] | null;
   /**
-   * Parent course (for sub-courses)
+   * Module this slide belongs to
    */
-  parent?: (number | null) | Course;
+  parent?: (number | null) | Module;
   breadcrumbs?:
     | {
-        doc?: (number | null) | Course;
+        doc?: (number | null) | Slide;
         url?: string | null;
         label?: string | null;
         id?: string | null;
@@ -507,10 +469,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'payload-jobs';
         value: number | PayloadJob;
-      } | null)
-    | ({
-        relationTo: 'folders';
-        value: number | FolderInterface;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -585,7 +543,6 @@ export interface UsersSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   prefix?: T;
-  folder?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -711,7 +668,6 @@ export interface SlidesSelect<T extends boolean = true> {
         id?: T;
       };
   search_vector?: T;
-  folder?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -770,18 +726,6 @@ export interface PayloadJobsSelect<T extends boolean = true> {
   queue?: T;
   waitUntil?: T;
   processing?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "folders_select".
- */
-export interface FoldersSelect<T extends boolean = true> {
-  name?: T;
-  folder?: T;
-  documentsAndFolders?: T;
-  folderType?: T;
   updatedAt?: T;
   createdAt?: T;
 }

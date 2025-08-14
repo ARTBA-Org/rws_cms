@@ -48,7 +48,7 @@ export class PDFProcessor {
       // Extract text from entire PDF
       console.log('📝 Extracting text from PDF...')
       const pdfText = await extractTextFromPDF(pdfBuffer)
-      
+
       if (pdfText && pdfText.text) {
         textExtracted = true
         console.log(`✅ Extracted ${pdfText.text.length} characters of text`)
@@ -81,22 +81,22 @@ export class PDFProcessor {
           // Generate image for this page
           let imageMediaId = null
           console.log(`🖼️ Generating image for page ${pageNum}...`)
-          
+
           try {
             // Extract single page as PDF first
             const singlePageDoc = await PDFDocument.create()
             const [copiedPage] = await singlePageDoc.copyPages(pdfDoc, [pageNum - 1])
             singlePageDoc.addPage(copiedPage)
             const singlePageBuffer = Buffer.from(await singlePageDoc.save())
-            
+
             // Convert to image using Puppeteer
             const imageBuffer = await convertPDFPageToImage(singlePageBuffer, 1)
-            
+
             if (imageBuffer && imageBuffer.length > 0) {
               // Upload image to media collection
               const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`
               console.log(`📤 Uploading image: ${imageName}`)
-              
+
               const mediaDoc = await payload.create({
                 collection: 'media',
                 data: {
@@ -111,7 +111,7 @@ export class PDFProcessor {
                 overrideAccess: true,
                 depth: 0,
               })
-              
+
               imageMediaId = mediaDoc.id
               imagesGenerated = true
               console.log(`✅ Image uploaded with ID: ${imageMediaId}`)
@@ -129,7 +129,7 @@ export class PDFProcessor {
 
           // Create slide with image and text
           console.log(`🎯 Creating slide for page ${pageNum}...`)
-          
+
           const slideData: any = {
             title,
             description,
@@ -144,15 +144,23 @@ export class PDFProcessor {
 
           const slide = await payload.create({
             collection: 'slides',
-            data: slideData,
+            data: {
+              ...slideData,
+              parent: Number(moduleId), // Set the parent relationship for nested docs
+              parent_id: Number(moduleId), // Set the parent_id for database field
+              source: {
+                pdfFilename,
+                pdfPage: pageNum,
+                module: Number(moduleId),
+              },
+            },
             overrideAccess: true,
             depth: 0,
           })
-          
+
           console.log(`✅ Slide created with ID: ${slide.id}`)
           slideIds.push(slide.id)
           slidesCreated++
-          
         } catch (pageError) {
           console.error(`❌ Error processing page ${pageNum}:`, pageError)
         }
@@ -166,7 +174,9 @@ export class PDFProcessor {
       })
 
       const existingSlides = currentModule.slides || []
-      console.log(`📊 Adding ${slideIds.length} new slides to ${existingSlides.length} existing slides`)
+      console.log(
+        `📊 Adding ${slideIds.length} new slides to ${existingSlides.length} existing slides`,
+      )
 
       await payload.update({
         collection: 'modules',
@@ -188,11 +198,10 @@ export class PDFProcessor {
         textExtracted,
         imagesGenerated,
       }
-      
     } catch (error) {
       console.error('💥 PDF processing error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      
+
       return {
         success: false,
         slidesCreated: 0,
@@ -210,9 +219,9 @@ export class PDFProcessor {
       return `${filename.replace('.pdf', '')} - Page ${pageNum}`
     }
 
-    const lines = text.split('\n').filter(line => line.trim().length > 0)
+    const lines = text.split('\n').filter((line) => line.trim().length > 0)
     const firstLine = lines[0]?.trim() || ''
-    
+
     if (firstLine.length > 5 && firstLine.length < 100) {
       return firstLine
         .replace(/[^\w\s-.,!?]/g, '')
@@ -224,50 +233,62 @@ export class PDFProcessor {
   }
 
   private generateDescription(
-    text: string, 
-    pageNum: number, 
+    text: string,
+    pageNum: number,
     totalPages: number,
     width: number,
-    height: number
+    height: number,
   ): string {
     const pageInfo = `Page ${pageNum} of ${totalPages} (${Math.round(width)}x${Math.round(height)}px)`
-    
+
     if (!text || text.length < 20) {
       return pageInfo
     }
 
-    const cleanText = text
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 500)
+    const cleanText = text.replace(/\s+/g, ' ').trim().substring(0, 500)
 
     return `${pageInfo}\n\n${cleanText}${text.length > 500 ? '...' : ''}`
   }
 
   private detectSlideType(text: string): string {
     const lowerText = text.toLowerCase()
-    
+
     // Check for quiz indicators
-    if (lowerText.includes('quiz') || lowerText.includes('question') || 
-        lowerText.includes('answer')) {
+    if (
+      lowerText.includes('quiz') ||
+      lowerText.includes('question') ||
+      lowerText.includes('answer')
+    ) {
       return 'quiz'
     }
-    
+
     // Check for reference indicators
-    if (lowerText.includes('reference') || lowerText.includes('bibliography') || 
-        lowerText.includes('citation') || lowerText.includes('source')) {
+    if (
+      lowerText.includes('reference') ||
+      lowerText.includes('bibliography') ||
+      lowerText.includes('citation') ||
+      lowerText.includes('source')
+    ) {
       return 'reference'
     }
-    
+
     // Check for resources indicators
-    if (lowerText.includes('resource') || lowerText.includes('link') ||
-        lowerText.includes('download') || lowerText.includes('material')) {
+    if (
+      lowerText.includes('resource') ||
+      lowerText.includes('link') ||
+      lowerText.includes('download') ||
+      lowerText.includes('material')
+    ) {
       return 'resources'
     }
 
     // Check for video indicators
-    if (lowerText.includes('video') || lowerText.includes('watch') ||
-        lowerText.includes('youtube') || lowerText.includes('vimeo')) {
+    if (
+      lowerText.includes('video') ||
+      lowerText.includes('watch') ||
+      lowerText.includes('youtube') ||
+      lowerText.includes('vimeo')
+    ) {
       return 'video'
     }
 

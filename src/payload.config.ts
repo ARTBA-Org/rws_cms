@@ -197,12 +197,10 @@ export default buildConfig({
     // Reduce admin DB lookups that can fail on short-lived connections
     livePreview: null,
   },
-  // Enable folders for better content organization
-  folders: {
-    browseByFolder: true,
-    slug: 'folders',
-    fieldName: 'folder',
-  },
+  // Folders temporarily disabled due to compatibility issue
+  // folders: {
+  //   browseByFolder: true,
+  // },
   // Custom scripts
   bin: [
     // Media cleanup scripts

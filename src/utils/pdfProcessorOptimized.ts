@@ -301,6 +301,24 @@ export class PDFProcessorOptimized {
   ): Promise<{ slideId: string | number; imageGenerated: boolean; wasExisting?: boolean } | null> {
     console.log(`📄 Processing page ${pageNum}/${totalPages}`)
 
+    // Verify module exists before creating slide
+    try {
+      const moduleCheck = await payload.findByID({
+        collection: 'modules',
+        id: String(moduleId),
+        overrideAccess: true,
+        depth: 0,
+      })
+      console.log(`🔍 Module verification:`, {
+        moduleId,
+        moduleExists: !!moduleCheck,
+        moduleTitle: moduleCheck?.title,
+      })
+    } catch (moduleError) {
+      console.error(`❌ Module ${moduleId} not found:`, moduleError)
+      throw new Error(`Module ${moduleId} not found`)
+    }
+
     // Get page dimensions
     const page = pdfDoc.getPage(pageNum - 1)
     const { width, height } = page.getSize()
@@ -338,53 +356,12 @@ export class PDFProcessorOptimized {
         if (imageBuffer && imageBuffer.length > 0) {
           const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`
 
-          // Get or create folder for this module's media
-          let mediaFolder = null
-          try {
-            // Get module info for folder naming
-            const module = await payload.findByID({
-              collection: 'modules',
-              id: String(moduleId),
-              overrideAccess: true,
-              depth: 0,
-            })
-
-            const folderName = `${module.title} - Media`
-
-            // Check if folder already exists
-            const existingFolders = await payload.find({
-              collection: 'folders',
-              where: {
-                name: {
-                  equals: folderName,
-                },
-              },
-              limit: 1,
-              overrideAccess: true,
-            })
-
-            if (existingFolders.docs.length > 0) {
-              mediaFolder = existingFolders.docs[0].id
-            } else {
-              // Create new folder
-              const newFolder = await payload.create({
-                collection: 'folders',
-                data: {
-                  name: folderName,
-                },
-                overrideAccess: true,
-              })
-              mediaFolder = newFolder.id
-            }
-          } catch (folderErr) {
-            console.warn('⚠️ Could not create/find folder for media:', folderErr)
-          }
+          // Folder functionality temporarily disabled due to compatibility issue
 
           const mediaDoc = await payload.create({
             collection: 'media',
             data: {
               alt: `Page ${pageNum} from ${pdfFilename}`,
-              folder: mediaFolder, // Assign to folder
             },
             file: {
               data: imageBuffer,
@@ -441,30 +418,54 @@ export class PDFProcessorOptimized {
       })
       if (existing.docs && existing.docs.length > 0) {
         const existingSlide = existing.docs[0] as any
-        // If an image was generated on this run and the existing slide lacks an image, attach it
-        if (
+
+        // Check if existing slide needs parent field update or image attachment
+        const needsParentUpdate = !existingSlide.parent && !existingSlide.parent_id
+        const needsImageUpdate =
           imageMediaId &&
           (!existingSlide.image ||
             (typeof existingSlide.image === 'object' && !existingSlide.image?.id))
-        ) {
+
+        if (needsParentUpdate || needsImageUpdate) {
           try {
+            const updateData: any = {}
+
+            if (needsParentUpdate) {
+              updateData.parent = Number(moduleId)
+              updateData.parent_id = Number(moduleId)
+              console.log(`🔗 Setting parent field on existing slide ${existingSlide.id}`)
+            }
+
+            if (needsImageUpdate) {
+              updateData.image = imageMediaId
+              console.log(
+                `🔗 Attaching image ${imageMediaId} to existing slide ${existingSlide.id}`,
+              )
+            }
+
             await payload.update({
               collection: 'slides',
               id: String(existingSlide.id),
-              data: { image: imageMediaId },
+              data: updateData,
               overrideAccess: true,
               depth: 0,
             })
-            console.log(`🔗 Attached image ${imageMediaId} to existing slide ${existingSlide.id}`)
-            return { slideId: existingSlide.id, imageGenerated: true, wasExisting: true }
-          } catch (attachErr) {
-            console.warn(
-              `⚠️ Failed to attach image to existing slide ${existingSlide.id}:`,
-              attachErr,
+
+            console.log(
+              `✅ Updated existing slide ${existingSlide.id} with:`,
+              Object.keys(updateData),
             )
+            return {
+              slideId: existingSlide.id,
+              imageGenerated: needsImageUpdate,
+              wasExisting: true,
+            }
+          } catch (updateErr) {
+            console.warn(`⚠️ Failed to update existing slide ${existingSlide.id}:`, updateErr)
             return { slideId: existingSlide.id, imageGenerated: false, wasExisting: true }
           }
         }
+
         console.log(
           `↩️ Skipping duplicate slide for page ${pageNum} (already exists: ${existingSlide.id})`,
         )
@@ -474,62 +475,61 @@ export class PDFProcessorOptimized {
       console.warn('⚠️ Duplicate-check failed, proceeding to create slide:', findErr)
     }
 
-    // Get or create folder for this module's slides
-    let slideFolder = null
-    try {
-      // Get module info for folder naming
-      const module = await payload.findByID({
-        collection: 'modules',
-        id: String(moduleId),
-        overrideAccess: true,
-        depth: 0,
-      })
+    // Folder functionality temporarily disabled due to compatibility issue
 
-      const folderName = `${module.title} - Slides`
-
-      // Check if folder already exists
-      const existingFolders = await payload.find({
-        collection: 'folders',
-        where: {
-          name: {
-            equals: folderName,
-          },
-        },
-        limit: 1,
-        overrideAccess: true,
-      })
-
-      if (existingFolders.docs.length > 0) {
-        slideFolder = existingFolders.docs[0].id
-      } else {
-        // Create new folder
-        const newFolder = await payload.create({
-          collection: 'folders',
-          data: {
-            name: folderName,
-          },
-          overrideAccess: true,
-        })
-        slideFolder = newFolder.id
-      }
-    } catch (folderErr) {
-      console.warn('⚠️ Could not create/find folder for slides:', folderErr)
+    // Debug the data being sent
+    const slideCreateData = {
+      ...slideData,
+      parent: Number(moduleId), // Set the parent relationship for nested docs (API field name)
+      parent_id: Number(moduleId), // Set the parent_id for database (actual DB field name)
+      source: {
+        pdfFilename,
+        pdfPage: pageNum,
+        module: Number(moduleId),
+      },
     }
+
+    console.log(`🔍 Creating slide with data:`, {
+      title: slideCreateData.title,
+      parent: slideCreateData.parent,
+      parent_id: slideCreateData.parent_id,
+      parentType: typeof slideCreateData.parent,
+      moduleId,
+      moduleIdType: typeof moduleId,
+      sourceModule: slideCreateData.source.module,
+    })
 
     const slide = await payload.create({
       collection: 'slides',
-      data: {
-        ...slideData,
-        folder: slideFolder, // Assign to folder
-        source: {
-          pdfFilename,
-          pdfPage: pageNum,
-          module: Number(moduleId),
-        },
-      },
+      data: slideCreateData,
       overrideAccess: true,
-      depth: 0,
+      depth: 1, // Increase depth to see populated relationships
     })
+
+    console.log(`✅ Slide ${slide.id} created:`, {
+      id: slide.id,
+      title: (slide as any).title,
+      parent: (slide as any).parent,
+      parentType: typeof (slide as any).parent,
+      source: (slide as any).source,
+    })
+
+    // Also fetch the slide back to verify it was saved correctly
+    try {
+      const verifySlide = await payload.findByID({
+        collection: 'slides',
+        id: String(slide.id),
+        depth: 1,
+        overrideAccess: true,
+      })
+      console.log(`🔍 Verification - Slide ${slide.id} parent field:`, {
+        parent: (verifySlide as any).parent,
+        parentId: (verifySlide as any).parent?.id,
+        parentTitle: (verifySlide as any).parent?.title,
+      })
+    } catch (verifyError) {
+      console.error(`❌ Could not verify slide ${slide.id}:`, verifyError)
+    }
 
     console.log(`✅ Slide ${slide.id} created for page ${pageNum}`)
 
