@@ -1,8 +1,10 @@
 import type { CollectionConfig } from 'payload'
+import { createParentField, createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 // Removed PDF auto-processing; collection simplified
 
 const Modules: CollectionConfig = {
   slug: 'modules',
+  trash: true, // Enable soft delete functionality
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'description', 'slidesCount'],
@@ -14,6 +16,33 @@ const Modules: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
+    },
+    {
+      name: 'slug',
+      type: 'text',
+      required: true,
+      unique: true,
+      admin: {
+        description: 'Auto-generated from title (editable)',
+        position: 'sidebar',
+      },
+      hooks: {
+        beforeValidate: [
+          ({ data, operation }) => {
+            if (operation === 'create' || !data?.slug) {
+              if (data?.title) {
+                // Auto-generate slug from title
+                return data.title
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+                  .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+                  .substring(0, 50) // Limit length
+              }
+            }
+            return data?.slug
+          },
+        ],
+      },
     },
     {
       name: 'description',
@@ -45,7 +74,7 @@ const Modules: CollectionConfig = {
       type: 'ui',
       admin: {
         components: {
-          Field: '@/components/ProcessPdfButtonEnhanced#default',
+          Field: '@/components/PdfProcessorField#PdfProcessorField',
         },
       },
     },
@@ -53,6 +82,18 @@ const Modules: CollectionConfig = {
       name: 'slidesColor',
       type: 'text',
     },
+    // Nested docs fields - modules can belong to courses
+    createParentField('courses', {
+      admin: {
+        position: 'sidebar',
+        description: 'Course this module belongs to',
+      },
+    }),
+    createBreadcrumbsField('modules', {
+      admin: {
+        position: 'sidebar',
+      },
+    }),
     // PDF fields removed
     {
       name: 'search_vector',

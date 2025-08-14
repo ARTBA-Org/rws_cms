@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       useChunked = false,
       processorConfig = {},
       startPage: clientStartPage,
+      replaceExisting = false,
     } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
@@ -170,6 +171,71 @@ export async function POST(request: NextRequest) {
       }
     } else {
       console.log('📌 Using client-provided startPage:', startPage)
+    }
+
+    // Clean up existing slides if requested
+    if (replaceExisting) {
+      console.log('🗑️ Cleaning up existing slides and media...')
+      try {
+        // Find all existing slides for this module
+        const existingSlides = await payload.find({
+          collection: 'slides',
+          where: {
+            'source.moduleId': {
+              equals: String(moduleId),
+            },
+          },
+          limit: 1000,
+          overrideAccess: true,
+        })
+
+        console.log(`🗑️ Found ${existingSlides.docs.length} existing slides to clean up`)
+
+        // Delete each slide and its associated media
+        for (const slide of existingSlides.docs as any[]) {
+          try {
+            // Delete associated media if it exists
+            if (slide.slideImage) {
+              const mediaId =
+                typeof slide.slideImage === 'object' ? slide.slideImage.id : slide.slideImage
+              if (mediaId) {
+                console.log(`🗑️ Deleting media ${mediaId} for slide ${slide.id}`)
+                await payload.delete({
+                  collection: 'media',
+                  id: String(mediaId),
+                  overrideAccess: true,
+                })
+              }
+            }
+
+            // Delete the slide
+            console.log(`🗑️ Deleting slide ${slide.id}`)
+            await payload.delete({
+              collection: 'slides',
+              id: String(slide.id),
+              overrideAccess: true,
+            })
+          } catch (deleteErr) {
+            console.warn(`⚠️ Error deleting slide ${slide.id}:`, deleteErr)
+          }
+        }
+
+        // Update module to remove slide references
+        console.log('🔄 Updating module to remove slide references...')
+        await payload.update({
+          collection: 'modules',
+          id: String(moduleId),
+          data: {
+            slides: [], // Clear all slide references
+          },
+          overrideAccess: true,
+        })
+
+        console.log('✅ Cleanup completed successfully')
+      } catch (cleanupErr) {
+        console.error('❌ Error during cleanup:', cleanupErr)
+        // Continue with processing even if cleanup fails
+      }
     }
 
     let result

@@ -135,6 +135,14 @@ export default function ProcessPdfButtonEnhanced() {
     }
   }
 
+  // Debug logging
+  console.log('ProcessPdfButtonEnhanced render check:', {
+    moduleId,
+    checkedPdf,
+    hasPdf,
+    shouldRender: !(!moduleId || !checkedPdf || !hasPdf),
+  })
+
   // If module not ready or no PDF, render nothing
   if (!moduleId || !checkedPdf || !hasPdf) return null
 

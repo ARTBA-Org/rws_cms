@@ -2,6 +2,8 @@ import type { CollectionConfig } from 'payload'
 
 const Media: CollectionConfig = {
   slug: 'media',
+  // Enable folders for better organization
+  folders: true,
   admin: {
     hidden: false,
   },

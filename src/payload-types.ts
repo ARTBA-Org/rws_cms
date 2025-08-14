@@ -72,19 +72,27 @@ export interface Config {
     courses: Course;
     modules: Module;
     slides: Slide;
-    search: Search;
+    exports: Export;
+    'payload-jobs': PayloadJob;
+    folders: FolderInterface;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    folders: {
+      documentsAndFolders: 'folders' | 'media' | 'slides';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
     modules: ModulesSelect<false> | ModulesSelect<true>;
     slides: SlidesSelect<false> | SlidesSelect<true>;
-    search: SearchSelect<false> | SearchSelect<true>;
+    exports: ExportsSelect<false> | ExportsSelect<true>;
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
+    folders: FoldersSelect<false> | FoldersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -99,7 +107,13 @@ export interface Config {
     collection: 'users';
   };
   jobs: {
-    tasks: unknown;
+    tasks: {
+      createCollectionExport: TaskCreateCollectionExport;
+      inline: {
+        input: unknown;
+        output: unknown;
+      };
+    };
     workflows: unknown;
   };
 }
@@ -155,6 +169,7 @@ export interface Media {
   id: number;
   alt?: string | null;
   prefix?: string | null;
+  folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -187,40 +202,31 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "courses".
+ * via the `definition` "folders".
  */
-export interface Course {
+export interface FolderInterface {
   id: number;
-  title: string;
-  description: string;
-  learningObjectives?:
-    | {
-        objective?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  Thumbnail?: (number | null) | Media;
-  modules?: (number | Module)[] | null;
-  search_vector?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "modules".
- */
-export interface Module {
-  id: number;
-  title: string;
-  description?: string | null;
-  moduleThumbnail?: (number | null) | Media;
-  slides?: (number | Slide)[] | null;
-  /**
-   * Upload a PDF file here, then use the processing button below to convert it into slides.
-   */
-  pdfUpload?: (number | null) | Media;
-  slidesColor?: string | null;
-  search_vector?: string | null;
+  name: string;
+  folder?: (number | null) | FolderInterface;
+  documentsAndFolders?: {
+    docs?: (
+      | {
+          relationTo?: 'folders';
+          value: number | FolderInterface;
+        }
+      | {
+          relationTo?: 'media';
+          value: number | Media;
+        }
+      | {
+          relationTo?: 'slides';
+          value: number | Slide;
+        }
+    )[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  folderType?: ('media' | 'slides')[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -231,6 +237,10 @@ export interface Module {
 export interface Slide {
   id: number;
   title: string;
+  /**
+   * Auto-generated from title (editable)
+   */
+  slug: string;
   source?: {
     pdfFilename?: string | null;
     pdfPage?: number | null;
@@ -245,34 +255,221 @@ export interface Slide {
         id?: string | null;
       }[]
     | null;
+  /**
+   * Module this slide belongs to
+   */
+  parent?: (number | null) | Module;
+  breadcrumbs?:
+    | {
+        doc?: (number | null) | Slide;
+        url?: string | null;
+        label?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  search_vector?: string | null;
+  folder?: (number | null) | FolderInterface;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "modules".
+ */
+export interface Module {
+  id: number;
+  title: string;
+  /**
+   * Auto-generated from title (editable)
+   */
+  slug: string;
+  description?: string | null;
+  moduleThumbnail?: (number | null) | Media;
+  slides?: (number | Slide)[] | null;
+  /**
+   * Upload a PDF file here, then use the processing button below to convert it into slides.
+   */
+  pdfUpload?: (number | null) | Media;
+  slidesColor?: string | null;
+  /**
+   * Course this module belongs to
+   */
+  parent?: (number | null) | Course;
+  breadcrumbs?:
+    | {
+        doc?: (number | null) | Module;
+        url?: string | null;
+        label?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   search_vector?: string | null;
   updatedAt: string;
   createdAt: string;
+  deletedAt?: string | null;
 }
 /**
- * This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.
- *
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "search".
+ * via the `definition` "courses".
  */
-export interface Search {
+export interface Course {
   id: number;
-  title?: string | null;
-  priority?: number | null;
-  doc:
+  title: string;
+  /**
+   * Auto-generated from title (editable)
+   */
+  slug: string;
+  description: string;
+  learningObjectives?:
     | {
-        relationTo: 'courses';
-        value: number | Course;
+        objective?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  Thumbnail?: (number | null) | Media;
+  modules?: (number | Module)[] | null;
+  /**
+   * Parent course (for sub-courses)
+   */
+  parent?: (number | null) | Course;
+  breadcrumbs?:
+    | {
+        doc?: (number | null) | Course;
+        url?: string | null;
+        label?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  search_vector?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "exports".
+ */
+export interface Export {
+  id: number;
+  name?: string | null;
+  format?: ('csv' | 'json') | null;
+  limit?: number | null;
+  sort?: string | null;
+  drafts?: ('yes' | 'no') | null;
+  selectionToUse?: ('currentSelection' | 'currentFilters' | 'all') | null;
+  fields?: string[] | null;
+  collectionSlug: string;
+  where?:
+    | {
+        [k: string]: unknown;
       }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number;
+  /**
+   * Input data provided to the job
+   */
+  input?:
     | {
-        relationTo: 'modules';
-        value: number | Module;
+        [k: string]: unknown;
       }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  taskStatus?:
     | {
-        relationTo: 'slides';
-        value: number | Slide;
-      };
-  content?: string | null;
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  completedAt?: string | null;
+  totalTried?: number | null;
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null;
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string;
+        completedAt: string;
+        taskSlug: 'inline' | 'createCollectionExport';
+        taskID: string;
+        input?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        output?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        state: 'failed' | 'succeeded';
+        error?:
+          | {
+              [k: string]: unknown;
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null;
+        id?: string | null;
+      }[]
+    | null;
+  taskSlug?: ('inline' | 'createCollectionExport') | null;
+  queue?: string | null;
+  waitUntil?: string | null;
+  processing?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -304,8 +501,16 @@ export interface PayloadLockedDocument {
         value: number | Slide;
       } | null)
     | ({
-        relationTo: 'search';
-        value: number | Search;
+        relationTo: 'exports';
+        value: number | Export;
+      } | null)
+    | ({
+        relationTo: 'payload-jobs';
+        value: number | PayloadJob;
+      } | null)
+    | ({
+        relationTo: 'folders';
+        value: number | FolderInterface;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -380,6 +585,7 @@ export interface UsersSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   prefix?: T;
+  folder?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -422,6 +628,7 @@ export interface MediaSelect<T extends boolean = true> {
  */
 export interface CoursesSelect<T extends boolean = true> {
   title?: T;
+  slug?: T;
   description?: T;
   learningObjectives?:
     | T
@@ -431,9 +638,19 @@ export interface CoursesSelect<T extends boolean = true> {
       };
   Thumbnail?: T;
   modules?: T;
+  parent?: T;
+  breadcrumbs?:
+    | T
+    | {
+        doc?: T;
+        url?: T;
+        label?: T;
+        id?: T;
+      };
   search_vector?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -441,14 +658,25 @@ export interface CoursesSelect<T extends boolean = true> {
  */
 export interface ModulesSelect<T extends boolean = true> {
   title?: T;
+  slug?: T;
   description?: T;
   moduleThumbnail?: T;
   slides?: T;
   pdfUpload?: T;
   slidesColor?: T;
+  parent?: T;
+  breadcrumbs?:
+    | T
+    | {
+        doc?: T;
+        url?: T;
+        label?: T;
+        id?: T;
+      };
   search_vector?: T;
   updatedAt?: T;
   createdAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -456,6 +684,7 @@ export interface ModulesSelect<T extends boolean = true> {
  */
 export interface SlidesSelect<T extends boolean = true> {
   title?: T;
+  slug?: T;
   source?:
     | T
     | {
@@ -472,19 +701,87 @@ export interface SlidesSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  parent?: T;
+  breadcrumbs?:
+    | T
+    | {
+        doc?: T;
+        url?: T;
+        label?: T;
+        id?: T;
+      };
   search_vector?: T;
+  folder?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "exports_select".
+ */
+export interface ExportsSelect<T extends boolean = true> {
+  name?: T;
+  format?: T;
+  limit?: T;
+  sort?: T;
+  drafts?: T;
+  selectionToUse?: T;
+  fields?: T;
+  collectionSlug?: T;
+  where?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs_select".
+ */
+export interface PayloadJobsSelect<T extends boolean = true> {
+  input?: T;
+  taskStatus?: T;
+  completedAt?: T;
+  totalTried?: T;
+  hasError?: T;
+  error?: T;
+  log?:
+    | T
+    | {
+        executedAt?: T;
+        completedAt?: T;
+        taskSlug?: T;
+        taskID?: T;
+        input?: T;
+        output?: T;
+        state?: T;
+        error?: T;
+        id?: T;
+      };
+  taskSlug?: T;
+  queue?: T;
+  waitUntil?: T;
+  processing?: T;
   updatedAt?: T;
   createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "search_select".
+ * via the `definition` "folders_select".
  */
-export interface SearchSelect<T extends boolean = true> {
-  title?: T;
-  priority?: T;
-  doc?: T;
-  content?: T;
+export interface FoldersSelect<T extends boolean = true> {
+  name?: T;
+  folder?: T;
+  documentsAndFolders?: T;
+  folderType?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -519,6 +816,35 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskCreateCollectionExport".
+ */
+export interface TaskCreateCollectionExport {
+  input: {
+    name?: string | null;
+    format?: ('csv' | 'json') | null;
+    limit?: number | null;
+    sort?: string | null;
+    drafts?: ('yes' | 'no') | null;
+    selectionToUse?: ('currentSelection' | 'currentFilters' | 'all') | null;
+    fields?: string[] | null;
+    collectionSlug: string;
+    where?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    user?: string | null;
+    userCollection?: string | null;
+    exportsCollection?: string | null;
+  };
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

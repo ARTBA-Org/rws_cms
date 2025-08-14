@@ -8,13 +8,13 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 import { s3Storage } from '@payloadcms/storage-s3'
+import { importExportPlugin } from '@payloadcms/plugin-import-export'
+import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 // AlgoliaSearchPlugin is no longer used directly
 // import { AlgoliaSearchPlugin } from 'payload-plugin-algolia'
 import type { Config, Plugin } from 'payload/config'
 import type { AlgoliaSearchConfig } from 'payload-plugin-algolia/dist/types'
 import enhancedSyncWithSearch from './hooks/enhancedAlgoliaSync'
-// Switch to Payload Search plugin
-import { searchPlugin } from '@payloadcms/plugin-search'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -197,6 +197,50 @@ export default buildConfig({
     // Reduce admin DB lookups that can fail on short-lived connections
     livePreview: null,
   },
+  // Enable folders for better content organization
+  folders: {
+    browseByFolder: true,
+    slug: 'folders',
+    fieldName: 'folder',
+  },
+  // Custom scripts
+  bin: [
+    // Media cleanup scripts
+    {
+      scriptPath: path.resolve(dirname, '../scripts/cleanup-orphaned-media-dry-run.ts'),
+      key: 'cleanup-media-dry-run',
+    },
+    {
+      scriptPath: path.resolve(dirname, '../scripts/cleanup-orphaned-media.ts'),
+      key: 'cleanup-media',
+    },
+    // Data cleanup scripts
+    {
+      scriptPath: path.resolve(dirname, '../scripts/cleanup-all-data.ts'),
+      key: 'cleanup-all-data',
+    },
+    {
+      scriptPath: path.resolve(dirname, '../scripts/cleanup-content-only.ts'),
+      key: 'cleanup-content-only',
+    },
+    {
+      scriptPath: path.resolve(dirname, '../scripts/fix-database-constraints.ts'),
+      key: 'fix-database-constraints',
+    },
+    {
+      scriptPath: path.resolve(dirname, '../scripts/reset-database-schema.ts'),
+      key: 'reset-database-schema',
+    },
+    // Seeding scripts
+    {
+      scriptPath: path.resolve(dirname, '../scripts/seed-nested-structure.ts'),
+      key: 'seed-nested',
+    },
+    {
+      scriptPath: path.resolve(dirname, '../scripts/seed-sample-data.ts'),
+      key: 'seed-sample',
+    },
+  ],
   collections: [Users, Media, Courses, Modules, Slides],
   editor: lexicalEditor(),
   secret: PAYLOAD_SECRET,
@@ -219,22 +263,15 @@ export default buildConfig({
   }),
   sharp,
   plugins: [
-    // Payload Search plugin (built-in Postgres search)
-    searchPlugin({
+    // Import/Export plugin for slides, modules, and courses
+    importExportPlugin({
+      collections: ['slides', 'modules', 'courses'],
+    }),
+    // Nested Docs plugin for hierarchical structure
+    nestedDocsPlugin({
       collections: ['courses', 'modules', 'slides'],
-      searchOverrides: {
-        fields: ({ defaultFields }) => [
-          ...defaultFields,
-          { name: 'content', type: 'textarea', admin: { readOnly: true } },
-        ],
-      },
-      beforeSync: ({ originalDoc, searchDoc }) => {
-        // Attempt to derive content text from description/title
-        const content = [(originalDoc as any)?.description || '', (originalDoc as any)?.title || '']
-          .filter(Boolean)
-          .join(' ')
-        return { ...searchDoc, content }
-      },
+      generateLabel: (_, doc) => doc.title || 'Untitled',
+      generateURL: (docs) => docs.reduce((url, doc) => `${url}/${doc.slug || doc.id}`, ''),
     }),
     // Conditionally add S3 storage if environment variables are available
     AWS_ACCESS_KEY &&

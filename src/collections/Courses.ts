@@ -1,7 +1,9 @@
 import type { CollectionConfig } from 'payload'
+import { createParentField, createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
 const Courses: CollectionConfig = {
   slug: 'courses',
+  trash: true, // Enable soft delete functionality
   admin: {
     useAsTitle: 'title',
   },
@@ -10,6 +12,33 @@ const Courses: CollectionConfig = {
       name: 'title',
       type: 'text',
       required: true,
+    },
+    {
+      name: 'slug',
+      type: 'text',
+      required: true,
+      unique: true,
+      admin: {
+        description: 'Auto-generated from title (editable)',
+        position: 'sidebar',
+      },
+      hooks: {
+        beforeValidate: [
+          ({ data, operation }) => {
+            if (operation === 'create' || !data?.slug) {
+              if (data?.title) {
+                // Auto-generate slug from title
+                return data.title
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+                  .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+                  .substring(0, 50) // Limit length
+              }
+            }
+            return data?.slug
+          },
+        ],
+      },
     },
     {
       name: 'description',
@@ -37,6 +66,18 @@ const Courses: CollectionConfig = {
       relationTo: 'modules',
       hasMany: true,
     },
+    // Nested docs fields
+    createParentField('courses', {
+      admin: {
+        position: 'sidebar',
+        description: 'Parent course (for sub-courses)',
+      },
+    }),
+    createBreadcrumbsField('courses', {
+      admin: {
+        position: 'sidebar',
+      },
+    }),
     // Define search_vector as a text field so Payload creates a column
     {
       name: 'search_vector',

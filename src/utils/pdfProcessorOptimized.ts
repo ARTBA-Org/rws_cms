@@ -338,10 +338,53 @@ export class PDFProcessorOptimized {
         if (imageBuffer && imageBuffer.length > 0) {
           const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`
 
+          // Get or create folder for this module's media
+          let mediaFolder = null
+          try {
+            // Get module info for folder naming
+            const module = await payload.findByID({
+              collection: 'modules',
+              id: String(moduleId),
+              overrideAccess: true,
+              depth: 0,
+            })
+
+            const folderName = `${module.title} - Media`
+
+            // Check if folder already exists
+            const existingFolders = await payload.find({
+              collection: 'folders',
+              where: {
+                name: {
+                  equals: folderName,
+                },
+              },
+              limit: 1,
+              overrideAccess: true,
+            })
+
+            if (existingFolders.docs.length > 0) {
+              mediaFolder = existingFolders.docs[0].id
+            } else {
+              // Create new folder
+              const newFolder = await payload.create({
+                collection: 'folders',
+                data: {
+                  name: folderName,
+                },
+                overrideAccess: true,
+              })
+              mediaFolder = newFolder.id
+            }
+          } catch (folderErr) {
+            console.warn('⚠️ Could not create/find folder for media:', folderErr)
+          }
+
           const mediaDoc = await payload.create({
             collection: 'media',
             data: {
               alt: `Page ${pageNum} from ${pdfFilename}`,
+              folder: mediaFolder, // Assign to folder
             },
             file: {
               data: imageBuffer,
@@ -431,10 +474,53 @@ export class PDFProcessorOptimized {
       console.warn('⚠️ Duplicate-check failed, proceeding to create slide:', findErr)
     }
 
+    // Get or create folder for this module's slides
+    let slideFolder = null
+    try {
+      // Get module info for folder naming
+      const module = await payload.findByID({
+        collection: 'modules',
+        id: String(moduleId),
+        overrideAccess: true,
+        depth: 0,
+      })
+
+      const folderName = `${module.title} - Slides`
+
+      // Check if folder already exists
+      const existingFolders = await payload.find({
+        collection: 'folders',
+        where: {
+          name: {
+            equals: folderName,
+          },
+        },
+        limit: 1,
+        overrideAccess: true,
+      })
+
+      if (existingFolders.docs.length > 0) {
+        slideFolder = existingFolders.docs[0].id
+      } else {
+        // Create new folder
+        const newFolder = await payload.create({
+          collection: 'folders',
+          data: {
+            name: folderName,
+          },
+          overrideAccess: true,
+        })
+        slideFolder = newFolder.id
+      }
+    } catch (folderErr) {
+      console.warn('⚠️ Could not create/find folder for slides:', folderErr)
+    }
+
     const slide = await payload.create({
       collection: 'slides',
       data: {
         ...slideData,
+        folder: slideFolder, // Assign to folder
         source: {
           pdfFilename,
           pdfPage: pageNum,
