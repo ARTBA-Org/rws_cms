@@ -101,6 +101,11 @@ function setupEnvironmentVariables() {
   // Create .env.production file with sensible defaults
   const envPath = path.resolve(process.cwd(), '.env.production')
 
+  // Also set runtime environment variables
+  process.env.NODE_ENV = 'production'
+  process.env.NEXT_TELEMETRY_DISABLED = '1'
+  process.env.NEXT_BUILD_SKIP_DB = 'true'
+
   // Function to safely get an environment variable with a fallback
   function getEnvVar(name, fallback = '') {
     const value = process.env[name]

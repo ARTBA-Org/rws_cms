@@ -1,8 +1,6 @@
 {
   "mcpServers": {
     "supabase_rs+": {
-      "timeout": 60,
-      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
@@ -10,7 +8,7 @@
         "--access-token",
         "sbp_3546f61a2f890999e5b46a130a8cf50ad3d28209"
       ],
-      "enabled": true,
+      "disabled": false,
       "autoApprove": [
         "list_organizations",
         "get_organization",
@@ -29,7 +27,6 @@
         "get_anon_key",
         "generate_typescript_types",
         "search_docs",
-        "list_tables",
         "execute_sql"
       ]
     },
@@ -41,17 +38,20 @@
         "--allow-sensitive-data-access",
         "--allow-read"
       ],
-      "env": { 
+      "env": {
         "AWS_PROFILE": "default",
         "AWS_REGION": "us-east-1",
         "FASTMCP_LOG_LEVEL": "ERROR"
-      }
-    },
-    "cursor.rules": {
-      "type": "stdio",
-      "enabled": true,
-      "command": "bash",
-      "args": ["-lc", "echo Cursor rules enabled"]
+      },
+      "disabled": false,
+      "autoApprove": [
+        "get_serverless_templates",
+        "get_lambda_guidance",
+        "sam_logs",
+        "get_metrics",
+        "sam_build",
+        "sam_deploy"
+      ]
     }
   }
 }

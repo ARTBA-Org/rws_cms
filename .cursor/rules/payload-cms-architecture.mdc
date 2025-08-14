@@ -1,0 +1,59 @@
+---
+description: Payload CMS architecture patterns and conventions for this project
+alwaysApply: true
+---
+
+# Payload CMS Architecture Guide
+
+This project uses **Payload CMS 3.50.0** with Next.js 15.4.5 as a unified full-stack application.
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   └── (payload)/         # Payload admin routes
+├── collections/           # Payload collection definitions
+│   ├── Users.ts
+│   ├── Media.ts
+│   ├── Courses.ts
+│   ├── Modules.ts
+│   └── Slides.ts
+├── hooks/                 # Custom Payload hooks
+│   └── enhancedAlgoliaSync.ts
+├── payload.config.ts      # Main Payload configuration
+└── payload-types.ts       # Generated TypeScript types
+```
+
+## Key Architecture Patterns
+
+### Configuration-First Approach
+- All collections, fields, and plugins are defined in code via [payload.config.ts](mdc:src/payload.config.ts)
+- Environment variables are validated at startup with proper error handling
+- Plugins load conditionally based on available environment variables
+
+### Database & Storage Integration
+- **Database**: PostgreSQL with connection pooling via `@payloadcms/db-postgres`
+- **File Storage**: S3-compatible storage (configurable) via `@payloadcms/storage-s3`
+- **Search**: Enhanced Algolia integration with custom sync hooks
+
+### Collection Relationships
+- **Courses** → **Modules** (one-to-many)
+- **Modules** → **Slides** (one-to-many)
+- **Media** collection for all file uploads
+- **Users** collection for authentication
+
+## Development Commands
+
+```bash
+npm run dev           # Start development server
+npm run build         # Production build
+npm run generate:types # Generate TypeScript types
+npm run payload       # Access Payload CLI
+```
+
+## Integration Points
+
+- **Admin Panel**: `/admin` - Payload's React-based admin interface
+- **API Endpoints**: `/api/*` - Auto-generated REST and GraphQL APIs
+- **Local API**: Direct server-side data access via `getPayload()`

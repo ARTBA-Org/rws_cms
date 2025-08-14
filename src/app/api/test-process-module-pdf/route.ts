@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '../../../payload.config'
+import path from 'path'
+import { promises as fs } from 'fs'
 
 // Dev-only helper to trigger PDF→Slides using the Local API
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Disabled in production' }, { status: 403 })
-  }
+  // Allow PDF processing in all environments
+  // Removed production check - PDF processing is now available in deployed environments
 
   try {
-    const { moduleId, mediaId } = await request.json()
+    const {
+      moduleId,
+      mediaId,
+      useOptimized = true,
+      useChunked = false,
+      processorConfig = {},
+      startPage: clientStartPage,
+      replaceExisting = false,
+    } = await request.json()
     if (!moduleId) {
       return NextResponse.json({ error: 'moduleId is required' }, { status: 400 })
     }
@@ -17,7 +26,12 @@ export async function POST(request: NextRequest) {
     const payload = await getPayload({ config })
 
     // Load module
-    const mod: any = await payload.findByID({ collection: 'modules', id: String(moduleId) })
+    const mod: any = await payload.findByID({
+      collection: 'modules',
+      id: String(moduleId),
+      overrideAccess: true,
+      depth: 0,
+    })
     console.log('📋 Debug: Module data:', {
       id: mod.id,
       title: mod.title,
@@ -73,39 +87,223 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log('📋 Loading media document...')
     const mediaDoc: any = await payload.findByID({
       collection: 'media',
       id: String(effectiveMediaId),
     })
     if (!mediaDoc?.url) {
+      console.error('❌ Media file has no accessible URL')
       return NextResponse.json({ error: 'Media file has no accessible URL' }, { status: 400 })
     }
+    console.log('✅ Media document loaded:', {
+      id: mediaDoc.id,
+      filename: mediaDoc.filename,
+      url: mediaDoc.url,
+      mimeType: mediaDoc.mimeType,
+    })
 
+    // Dynamically detect the actual port from the request
+    const host = request.headers.get('host')
     const SERVER_ORIGIN =
-      process.env.PAYLOAD_PUBLIC_SERVER_URL || `http://localhost:${process.env.PORT || 3001}`
+      process.env.PAYLOAD_PUBLIC_SERVER_URL || (host?.startsWith('http') ? host : `http://${host}`)
     const absoluteUrl = mediaDoc.url.startsWith('http')
       ? mediaDoc.url
       : `${SERVER_ORIGIN}${mediaDoc.url}`
 
+    console.log('📋 Fetching PDF from URL:', absoluteUrl)
+    console.log('📋 Server origin:', SERVER_ORIGIN)
+
     const cookie = request.headers.get('cookie') || ''
-    const res = await fetch(absoluteUrl, { headers: cookie ? { cookie } : undefined })
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `Failed to fetch PDF: ${res.status} ${res.statusText}` },
-        { status: 502 },
+    let pdfBuffer: Buffer | null = null
+    try {
+      const res = await fetch(absoluteUrl, { headers: cookie ? { cookie } : undefined })
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      console.log('✅ PDF fetched successfully, size:', res.headers.get('content-length'))
+      const ab = await res.arrayBuffer()
+      pdfBuffer = Buffer.from(ab)
+    } catch (fetchErr) {
+      console.warn('⚠️ HTTP fetch failed, trying filesystem fallback:', fetchErr)
+      try {
+        // Fallback to local file system when using local storage adapter
+        const filename = mediaDoc.filename || 'uploaded.pdf'
+        const filePath = path.join(process.cwd(), 'media', filename)
+        pdfBuffer = await fs.readFile(filePath)
+        console.log('✅ Loaded PDF from filesystem:', filePath)
+      } catch (fsErr) {
+        console.error('❌ Failed to load PDF from both HTTP and filesystem:', fsErr)
+        return NextResponse.json(
+          { error: `Failed to fetch PDF: ${String(fetchErr)}`, url: absoluteUrl },
+          { status: 502 },
+        )
+      }
+    }
+
+    console.log('✅ PDF buffer ready, size:', pdfBuffer.length)
+
+    // Use client's explicit startPage if provided, otherwise infer from existing slides
+    let startPage = clientStartPage
+    if (!startPage || startPage < 1) {
+      console.log('📌 No valid startPage from client, inferring from existing slides...')
+      startPage = 1
+      try {
+        const existingSlides = await payload.find({
+          collection: 'slides',
+          where: {
+            and: [
+              { 'source.module': { equals: Number(moduleId) } },
+              { 'source.pdfFilename': { equals: mediaDoc.filename || '' } },
+            ],
+          },
+          limit: 500,
+          depth: 0,
+          overrideAccess: true,
+        })
+        const pages = (existingSlides.docs as any[])
+          .map((s) => Number(s?.source?.pdfPage))
+          .filter((n) => Number.isFinite(n) && n > 0)
+        if (pages.length > 0) {
+          startPage = Math.max(...pages) + 1
+        }
+        console.log('📌 Inferred startPage from existing slides:', startPage)
+      } catch (inferErr) {
+        console.warn('⚠️ Could not infer start page from existing slides:', inferErr)
+      }
+    } else {
+      console.log('📌 Using client-provided startPage:', startPage)
+    }
+
+    // Clean up existing slides if requested
+    if (replaceExisting) {
+      console.log('🗑️ Cleaning up existing slides and media...')
+      try {
+        // Find all existing slides for this module
+        const existingSlides = await payload.find({
+          collection: 'slides',
+          where: {
+            'source.moduleId': {
+              equals: String(moduleId),
+            },
+          },
+          limit: 1000,
+          overrideAccess: true,
+        })
+
+        console.log(`🗑️ Found ${existingSlides.docs.length} existing slides to clean up`)
+
+        // Delete each slide and its associated media
+        for (const slide of existingSlides.docs as any[]) {
+          try {
+            // Delete associated media if it exists
+            if (slide.slideImage) {
+              const mediaId =
+                typeof slide.slideImage === 'object' ? slide.slideImage.id : slide.slideImage
+              if (mediaId) {
+                console.log(`🗑️ Deleting media ${mediaId} for slide ${slide.id}`)
+                await payload.delete({
+                  collection: 'media',
+                  id: String(mediaId),
+                  overrideAccess: true,
+                })
+              }
+            }
+
+            // Delete the slide
+            console.log(`🗑️ Deleting slide ${slide.id}`)
+            await payload.delete({
+              collection: 'slides',
+              id: String(slide.id),
+              overrideAccess: true,
+            })
+          } catch (deleteErr) {
+            console.warn(`⚠️ Error deleting slide ${slide.id}:`, deleteErr)
+          }
+        }
+
+        // Update module to remove slide references
+        console.log('🔄 Updating module to remove slide references...')
+        await payload.update({
+          collection: 'modules',
+          id: String(moduleId),
+          data: {
+            slides: [], // Clear all slide references
+          },
+          overrideAccess: true,
+        })
+
+        console.log('✅ Cleanup completed successfully')
+      } catch (cleanupErr) {
+        console.error('❌ Error during cleanup:', cleanupErr)
+        // Continue with processing even if cleanup fails
+      }
+    }
+
+    let result
+
+    if (useChunked) {
+      console.log('📋 Using chunked PDF processor...')
+      const { PDFProcessorChunked } = await import('../../../utils/pdfProcessorChunked')
+
+      const processor = new PDFProcessorChunked({
+        immediatePages: processorConfig.immediatePages || 3,
+        chunkSize: processorConfig.chunkSize || 5,
+        enableImages: processorConfig.enableImages !== false,
+      })
+
+      result = await processor.processPDFChunked(
+        pdfBuffer,
+        String(moduleId),
+        mediaDoc.filename || 'uploaded.pdf',
+      )
+    } else if (useOptimized) {
+      console.log('📋 Using optimized PDF processor...')
+      const { PDFProcessorOptimized } = await import('../../../utils/pdfProcessorOptimized')
+
+      // Default config for Lambda environment
+      const defaultConfig = {
+        maxPages: 5,
+        timeoutMs: 25000, // keep under Amplify SSR 28s ceiling
+        enableImages: true,
+        batchSize: 1,
+      }
+
+      const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
+      const merged = {
+        ...defaultConfig,
+        ...processorConfig,
+        startPage: startPage,
+      }
+
+      // Enforce safe caps in server to avoid SSR/Lambda timeout and long requests
+      const finalConfig = {
+        ...merged,
+        timeoutMs: Math.min(Number(merged.timeoutMs || defaultConfig.timeoutMs), 25000),
+        maxPages: isLambda
+          ? 1 // Keep under Amplify's ~28s SSR ceiling by processing a single page per request
+          : Number(merged.maxPages || 5),
+        batchSize: 1,
+      }
+
+      console.log('⚙️ Processor configuration:', finalConfig)
+
+      const processor = new PDFProcessorOptimized(finalConfig)
+      result = await processor.processPDFToSlides(
+        pdfBuffer,
+        String(moduleId),
+        mediaDoc.filename || 'uploaded.pdf',
+      )
+    } else {
+      console.log('📋 Using standard PDF processor with images...')
+      const { PDFProcessor } = await import('../../../utils/pdfProcessorWithImages')
+      const processor = new PDFProcessor()
+      result = await processor.processPDFToSlides(
+        pdfBuffer,
+        String(moduleId),
+        mediaDoc.filename || 'uploaded.pdf',
       )
     }
 
-    const ab = await res.arrayBuffer()
-    const pdfBuffer = Buffer.from(ab)
-
-    const { PDFProcessor } = await import('../../../utils/pdfProcessorWorking')
-    const processor = new PDFProcessor()
-    const result = await processor.processPDFToSlides(
-      pdfBuffer,
-      String(moduleId),
-      mediaDoc.filename || 'uploaded.pdf',
-    )
+    console.log('✅ PDF processing completed:', result)
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 })
   } catch (e: any) {

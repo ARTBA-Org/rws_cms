@@ -1,0 +1,110 @@
+---
+description: Payload CMS collection patterns and field definitions
+globs: src/collections/*.ts
+---
+
+# Payload Collection Development Patterns
+
+## Collection Definition Structure
+
+All collections follow this standard pattern in [src/collections/](mdc:src/collections/):
+
+```typescript
+import type { CollectionConfig } from 'payload'
+
+const CollectionName: CollectionConfig = {
+  slug: 'collection-name',
+  admin: {
+    useAsTitle: 'title', // or appropriate display field
+  },
+  access: {
+    // Define access control patterns
+  },
+  fields: [
+    // Field definitions
+  ],
+  hooks: {
+    // Collection-specific hooks
+  },
+}
+
+export default CollectionName
+```
+
+## Standard Field Patterns
+
+### Required Text Fields
+```typescript
+{
+  name: 'title',
+  type: 'text',
+  required: true,
+}
+```
+
+### Rich Text with Lexical Editor
+```typescript
+{
+  name: 'description',
+  type: 'richText',
+  editor: lexicalEditor(),
+}
+```
+
+### Relationship Fields
+```typescript
+{
+  name: 'modules',
+  type: 'relationship',
+  relationTo: 'modules',
+  hasMany: true,
+}
+```
+
+### File Upload Fields
+```typescript
+{
+  name: 'image',
+  type: 'upload',
+  relationTo: 'media',
+}
+```
+
+## Collection-Specific Patterns
+
+### Courses Collection
+- Contains learning objectives array
+- Related to modules (one-to-many)
+- Includes metadata for search indexing
+
+### Modules Collection 
+- Belongs to courses
+- Contains slides array
+- Has order/sequence fields
+
+### Slides Collection
+- Belongs to modules
+- Supports different slide types
+- Includes presentation assets
+
+### Media Collection
+- Handles all file uploads
+- S3 storage integration
+- Automatic image optimization with Sharp
+
+## Access Control Patterns
+
+```typescript
+access: {
+  read: () => true,           // Public read access
+  create: ({ req: { user } }) => !!user,  // Auth required for create
+  update: ({ req: { user } }) => !!user,  // Auth required for update
+  delete: ({ req: { user } }) => !!user,  // Auth required for delete
+}
+```
+
+## Search Integration
+
+Collections enabled for Algolia search: `courses`, `modules`, `slides`
+
+Custom search attributes are generated via `generateSearchAttributes()` function in [payload.config.ts](mdc:src/payload.config.ts)

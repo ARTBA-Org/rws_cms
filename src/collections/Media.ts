@@ -2,6 +2,8 @@ import type { CollectionConfig } from 'payload'
 
 const Media: CollectionConfig = {
   slug: 'media',
+  // Folders temporarily disabled due to compatibility issue
+  // folders: true,
   admin: {
     hidden: false,
   },

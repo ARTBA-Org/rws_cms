@@ -1,0 +1,102 @@
+---
+description: Environment variables and configuration management patterns
+globs: src/payload.config.ts,.env*
+---
+
+# Environment & Configuration Management
+
+## Environment Variable Patterns
+
+### Required Variables
+These must be present or the application will throw an error:
+
+```bash
+# Database (REQUIRED)
+DATABASE_URI=postgresql://user:password@host:port/database
+
+# Security (REQUIRED) 
+PAYLOAD_SECRET=your-secret-key-here
+```
+
+### Optional Service Variables
+Missing optional variables show warnings but don't break the app:
+
+```bash
+# AWS S3 Storage (Optional)
+S3_ACCESS_KEY=your-access-key
+S3_SECRET_KEY=your-secret-key  
+S3_REGION=us-west-1
+S3_ENDPOINT=https://your-endpoint.com
+
+# Algolia Search (Optional)
+ALGOLIA_APP_ID=your-app-id
+ALGOLIA_ADMIN_API_KEY=your-api-key
+ALGOLIA_INDEX=your-index-name
+```
+
+## Configuration Validation Pattern
+
+In [payload.config.ts](mdc:src/payload.config.ts):
+
+```typescript
+// Validate required environment variables
+if (!DATABASE_URI) {
+  throw new Error('DATABASE_URI environment variable is required')
+}
+
+if (!PAYLOAD_SECRET) {
+  throw new Error('PAYLOAD_SECRET environment variable is required')
+}
+
+// Warn for missing optional services
+if (!AWS_ACCESS_KEY || !AWS_SECRET_KEY || !AWS_ENDPOINT) {
+  console.warn('Missing AWS S3 environment variables - S3 storage will be disabled')
+}
+
+if (!ALGOLIA_APP_ID || !ALGOLIA_ADMIN_API_KEY) {
+  console.warn('Missing Algolia environment variables - Search functionality will be disabled')
+}
+```
+
+## Conditional Plugin Loading
+
+```typescript
+plugins: [
+  // Only add S3 storage if environment variables are available
+  AWS_ACCESS_KEY && AWS_SECRET_KEY && AWS_ENDPOINT && s3Storage({
+    // S3 configuration
+  }),
+  
+  // Only add Algolia search if environment variables are available  
+  ALGOLIA_APP_ID && ALGOLIA_ADMIN_API_KEY && EnhancedAlgoliaSearchPlugin({
+    // Algolia configuration
+  }),
+].filter(Boolean), // Remove falsy values
+```
+
+## Database Configuration
+
+PostgreSQL adapter with connection pooling:
+
+```typescript
+db: postgresAdapter({
+  pool: {
+    connectionString: DATABASE_URI,
+    ssl: {
+      rejectUnauthorized: false,
+    },
+    max: 20,                    // Maximum number of clients
+    min: 5,                     // Minimum idle clients
+    idleTimeoutMillis: 30000,   // Close idle clients after 30s
+    connectionTimeoutMillis: 10000, // Connection timeout
+    statement_timeout: 60000,   // Statement timeout
+  },
+}),
+```
+
+## Development vs Production
+
+- Use [.env](mdc:.env) for local development
+- Set environment variables in production deployment platform
+- Never commit sensitive values to version control
+- Use different database instances for development/production

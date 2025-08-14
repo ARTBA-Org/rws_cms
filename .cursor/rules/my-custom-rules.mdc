@@ -1,0 +1,64 @@
+---
+description: Custom business logic and domain-specific patterns for RWS CMS
+alwaysApply: false
+---
+
+# Custom Business Logic Rules
+
+## Course Management Domain
+
+### Course-Module-Slide Hierarchy
+- Courses contain multiple Modules
+- Modules contain multiple Slides  
+- Each level should maintain referential integrity
+- Use proper relationship fields for navigation
+
+### Learning Objectives Pattern
+Courses have an array of learning objectives with this structure:
+```typescript
+learningObjectives: [
+  {
+    objective: string // The actual learning objective text
+  }
+]
+```
+
+### Slide Types
+Support different slide types with appropriate fields:
+- Text slides: title, content
+- Image slides: title, image, caption
+- Video slides: title, video_url, duration
+- Interactive slides: custom components
+
+### Search Indexing Strategy
+- Index course titles, descriptions, and learning objectives
+- Index module titles and descriptions
+- Index slide content for full-text search
+- Maintain collection type in search attributes for filtering
+
+## Content Publishing Workflow
+
+### Draft vs Published States
+- Use Payload's built-in draft functionality
+- Implement proper access controls for draft content
+- Consider workflow states for course approval processes
+
+### Media Asset Management
+- Organize media by course/module for better management
+- Implement proper file naming conventions
+- Use appropriate image optimization settings
+- Consider CDN integration for better performance
+
+## API Usage Patterns
+
+### Depth Control
+Use appropriate depth levels for relationship queries:
+- Depth 0: IDs only (for performance)
+- Depth 1: Basic relationship data
+- Depth 2+: Full nested relationships (use sparingly)
+
+### Bulk Operations
+Implement efficient patterns for:
+- Course duplication with all modules/slides
+- Bulk slide reordering within modules
+- Batch media uploads and associations
