@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '../../../payload.config'
-import { PDFProcessor } from '../../../utils/pdfProcessor'
+import { PDFProcessorOptimized } from '../../../utils/pdfProcessorOptimized'
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,8 +51,12 @@ export async function POST(request: NextRequest) {
     const ab = await res.arrayBuffer()
     const pdfBuffer = Buffer.from(ab)
 
-    // Process the PDF
-    const processor = new PDFProcessor()
+    // Process the PDF using optimized processor with AI analysis
+    const processor = new PDFProcessorOptimized({
+      enableImages: true,
+      imageFormat: 'png' as const,
+      imageQuality: 90,
+    })
     const result = await processor.processPDFToSlides(
       pdfBuffer,
       String(moduleId),

@@ -74,8 +74,12 @@ export async function POST(request: NextRequest) {
     console.log('📦 Debug: PDF buffer size:', pdfBuffer.length)
 
     // Start PDF processing with detailed logging
-    const { PDFProcessor } = await import('../../../utils/pdfProcessor')
-    const processor = new PDFProcessor()
+    const { PDFProcessorOptimized } = await import('../../../utils/pdfProcessorOptimized')
+    const processor = new PDFProcessorOptimized({
+      enableImages: true,
+      imageFormat: 'png' as const,
+      imageQuality: 90,
+    })
 
     console.log('🚀 Debug: Starting PDF processing...')
     const result = await processor.processPDFToSlides(

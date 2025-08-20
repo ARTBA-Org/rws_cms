@@ -13,8 +13,6 @@ export async function POST(request: NextRequest) {
     const {
       moduleId,
       mediaId,
-      useOptimized = true,
-      useChunked = false,
       processorConfig = {},
       startPage: clientStartPage,
       replaceExisting = false,
@@ -181,8 +179,8 @@ export async function POST(request: NextRequest) {
         const existingSlides = await payload.find({
           collection: 'slides',
           where: {
-            'source.moduleId': {
-              equals: String(moduleId),
+            'source.module': {
+              equals: Number(moduleId),
             },
           },
           limit: 1000,
@@ -240,68 +238,45 @@ export async function POST(request: NextRequest) {
 
     let result
 
-    if (useChunked) {
-      console.log('📋 Using chunked PDF processor...')
-      const { PDFProcessorChunked } = await import('../../../utils/pdfProcessorChunked')
+    // Always use optimized processor (removed chunked and withImages options)
+    console.log('📋 Using optimized PDF processor with AI analysis...')
+    const { PDFProcessorOptimized } = await import('../../../utils/pdfProcessorOptimized')
 
-      const processor = new PDFProcessorChunked({
-        immediatePages: processorConfig.immediatePages || 3,
-        chunkSize: processorConfig.chunkSize || 5,
-        enableImages: processorConfig.enableImages !== false,
-      })
-
-      result = await processor.processPDFChunked(
-        pdfBuffer,
-        String(moduleId),
-        mediaDoc.filename || 'uploaded.pdf',
-      )
-    } else if (useOptimized) {
-      console.log('📋 Using optimized PDF processor...')
-      const { PDFProcessorOptimized } = await import('../../../utils/pdfProcessorOptimized')
-
-      // Default config for Lambda environment
-      const defaultConfig = {
-        maxPages: 5,
-        timeoutMs: 25000, // keep under Amplify SSR 28s ceiling
-        enableImages: true,
-        batchSize: 1,
-      }
-
-      const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
-      const merged = {
-        ...defaultConfig,
-        ...processorConfig,
-        startPage: startPage,
-      }
-
-      // Enforce safe caps in server to avoid SSR/Lambda timeout and long requests
-      const finalConfig = {
-        ...merged,
-        timeoutMs: Math.min(Number(merged.timeoutMs || defaultConfig.timeoutMs), 25000),
-        maxPages: isLambda
-          ? 1 // Keep under Amplify's ~28s SSR ceiling by processing a single page per request
-          : Number(merged.maxPages || 5),
-        batchSize: 1,
-      }
-
-      console.log('⚙️ Processor configuration:', finalConfig)
-
-      const processor = new PDFProcessorOptimized(finalConfig)
-      result = await processor.processPDFToSlides(
-        pdfBuffer,
-        String(moduleId),
-        mediaDoc.filename || 'uploaded.pdf',
-      )
-    } else {
-      console.log('📋 Using standard PDF processor with images...')
-      const { PDFProcessor } = await import('../../../utils/pdfProcessorWithImages')
-      const processor = new PDFProcessor()
-      result = await processor.processPDFToSlides(
-        pdfBuffer,
-        String(moduleId),
-        mediaDoc.filename || 'uploaded.pdf',
-      )
+    // Default config for all environments
+    const defaultConfig = {
+      maxPages: 10,
+      timeoutMs: 45000, // Increased for AI analysis
+      enableImages: true,
+      batchSize: 1,
+      imageFormat: 'png' as const,
+      imageQuality: 90,
     }
+
+    const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
+    const merged = {
+      ...defaultConfig,
+      ...processorConfig,
+      startPage: startPage,
+    }
+
+    // Enforce safe caps in server to avoid SSR/Lambda timeout and long requests
+    const finalConfig = {
+      ...merged,
+      timeoutMs: Math.min(Number(merged.timeoutMs || defaultConfig.timeoutMs), 45000),
+      maxPages: isLambda
+        ? 1 // Keep under Amplify's ~28s SSR ceiling by processing a single page per request
+        : Number(merged.maxPages || 10),
+      batchSize: 1,
+    }
+
+    console.log('⚙️ Processor configuration:', finalConfig)
+
+    const processor = new PDFProcessorOptimized(finalConfig)
+    result = await processor.processPDFToSlides(
+      pdfBuffer,
+      String(moduleId),
+      mediaDoc.filename || 'uploaded.pdf',
+    )
 
     console.log('✅ PDF processing completed:', result)
 

@@ -2,22 +2,9 @@ import { PDFDocument } from 'pdf-lib'
 import { getPayload } from 'payload'
 import config from '../payload.config'
 import { extractTextFromPDF } from './pdfTextExtractor'
-
-// Detect if running locally or in Lambda
-const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME || !!process.env.LAMBDA_TASK_ROOT
-
-// Lazy-load the correct converter only when needed to avoid bundling
-// heavy, environment-specific dependencies in the wrong environment
-async function loadImageConverter(): Promise<
-  (pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>
-> {
-  if (isLambda) {
-    const { convertPDFPageToImage } = await import('./pdfToImageLambda')
-    return convertPDFPageToImage
-  }
-  const { convertPDFPageToImageLocal } = await import('./pdfToImageLocal')
-  return convertPDFPageToImageLocal
-}
+import { SlideAnalyzer, type SlideAnalysis } from './slideAnalyzer'
+// Use Puppeteer-based image conversion for all environments
+import { convertPDFPageToImage } from './pdfToImagePuppeteer'
 
 export interface PDFProcessConfig {
   maxPages?: number
@@ -45,10 +32,8 @@ export interface PDFProcessResult {
 }
 
 export class PDFProcessorOptimized {
-  private config: PDFProcessConfig
-  private startTime: number = 0
-  private imageConverter: ((pdfBuffer: Buffer, pageNum: number) => Promise<Buffer | null>) | null =
-    null
+  private config: Required<PDFProcessConfig>
+  private payload: any = null
 
   constructor(config: PDFProcessConfig = {}) {
     this.config = {
@@ -341,17 +326,16 @@ export class PDFProcessorOptimized {
     // Generate image if enabled and buffer available
     let imageMediaId = null
     let imageGenerated = false
+    let imageBuffer: Buffer | null = null
 
     if (this.config.enableImages && singlePageBuffer && !this.isTimingOut()) {
       console.log(`🖼️ Generating image for page ${pageNum}...`)
       const imageStartTime = Date.now()
 
       try {
-        if (!this.imageConverter) {
-          this.imageConverter = await loadImageConverter()
-        }
+        // Use Puppeteer-based image conversion directly
         // Note: singlePageBuffer contains only one page, so we always use page 1
-        const imageBuffer = await this.imageConverter(singlePageBuffer, 1, pageNum)
+        imageBuffer = await convertPDFPageToImage(singlePageBuffer, 1)
 
         if (imageBuffer && imageBuffer.length > 0) {
           const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`
@@ -385,15 +369,31 @@ export class PDFProcessorOptimized {
       }
     }
 
-    // Generate title and description
-    const title = this.generateTitle(pageText, pdfFilename, pageNum)
-    const description = this.generateDescription(pageText, pageNum, totalPages, width, height)
+    // AI Analysis for enhanced slide data (reuse the same image buffer)
+    let aiAnalysis: SlideAnalysis | null = null
+    if (process.env.OPENAI_API_KEY && imageBuffer) {
+      try {
+        console.log(`🤖 Starting AI analysis for page ${pageNum}...`)
+        const analyzer = new SlideAnalyzer()
 
+        aiAnalysis = await analyzer.analyzeSlide(imageBuffer, pageNum, pdfFilename)
+        console.log(`✅ AI analysis completed for page ${pageNum}`)
+      } catch (aiError) {
+        console.warn(`⚠️ AI analysis failed for page ${pageNum}:`, aiError)
+      }
+    } else if (!process.env.OPENAI_API_KEY) {
+      console.log(`⚠️ OPENAI_API_KEY not set, skipping AI analysis for page ${pageNum}`)
+    }
+
+    // Generate title and description (use AI data if available, fallback to text extraction)
+    const title = aiAnalysis?.Title || this.generateTitle(pageText, pdfFilename, pageNum)
+    const description = aiAnalysis?.Description || this.generateDescription(pageText, pageNum, totalPages, width, height)
+    const slideType = aiAnalysis?.Type?.toLowerCase() || this.detectSlideType(pageText)
     // Create slide
     const slideData: any = {
       title,
       description,
-      type: this.detectSlideType(pageText),
+      type: slideType,
       urls: [],
     }
 

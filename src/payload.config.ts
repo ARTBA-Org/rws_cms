@@ -15,6 +15,7 @@ import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 import type { Config, Plugin } from 'payload/config'
 import type { AlgoliaSearchConfig } from 'payload-plugin-algolia/dist/types'
 import enhancedSyncWithSearch from './hooks/enhancedAlgoliaSync'
+import algoliasearch from 'algoliasearch'
 
 import Users from './collections/Users'
 import Media from './collections/Media'
@@ -55,7 +56,7 @@ const generateSearchAttributes = (args: SearchAttributesArgs) => {
         ...searchAttributes,
         learningObjectives: Array.isArray(doc.learningObjectives)
           ? doc.learningObjectives.map((obj: Record<string, unknown>) => obj.objective).join(' ') ||
-            ''
+          ''
           : '',
         modules: doc.modules, // Keeping modules IDs for now
       }
@@ -95,68 +96,72 @@ const generateSearchAttributes = (args: SearchAttributesArgs) => {
 // Create an enhanced version of the AlgoliaSearchPlugin that uses our custom sync function
 const EnhancedAlgoliaSearchPlugin =
   (searchConfig: AlgoliaSearchConfig): Plugin =>
-  (config: Config): Config => {
-    const { collections } = config
+    (config: Config): Config => {
+      const { collections } = config
 
-    if (collections) {
-      const enabledCollections = searchConfig.collections || []
+      if (collections) {
+        const enabledCollections = searchConfig.collections || []
 
-      const collectionsWithSearchHooks = collections
-        ?.map((collection) => {
-          const { hooks: existingHooks } = collection
-          const isEnabled = enabledCollections.indexOf(collection.slug) > -1
+        const collectionsWithSearchHooks = collections
+          ?.map((collection) => {
+            const { hooks: existingHooks } = collection
+            const isEnabled = enabledCollections.indexOf(collection.slug) > -1
 
-          if (isEnabled) {
-            return {
-              ...collection,
-              hooks: {
-                ...collection.hooks,
-                afterChange: [
-                  ...(existingHooks?.afterChange || []),
-                  enhancedSyncWithSearch(searchConfig),
-                ],
-                afterDelete: [
-                  ...(existingHooks?.afterDelete || []),
-                  // Enhanced delete function with proper imports
-                  (args: { collection: { slug: string }; doc: { id: string } }) => {
-                    try {
-                      const { collection, doc } = args
-                      const { id } = doc
-                      // Use imported createClient instead of require
-                      const searchClient = createClient(searchConfig.algolia)
-                      const objectID = `${collection.slug}:${id}`
+            if (isEnabled) {
+              return {
+                ...collection,
+                hooks: {
+                  ...collection.hooks,
+                  afterChange: [
+                    ...(existingHooks?.afterChange || []),
+                    enhancedSyncWithSearch(searchConfig),
+                  ],
+                  afterDelete: [
+                    ...(existingHooks?.afterDelete || []),
+                    // Enhanced delete function with proper imports
+                    (args: { collection: { slug: string }; doc: { id: string } }) => {
+                      try {
+                        const { collection, doc } = args
+                        const { id } = doc
+                        // Use imported algoliasearch client
+                        const searchClient = algoliasearch(
+                          searchConfig.algolia.applicationID,
+                          searchConfig.algolia.apiKey
+                        )
+                        const index = searchClient.initIndex(searchConfig.algolia.indexName)
+                        const objectID = `${collection.slug}:${id}`
 
-                      const deleteOp = searchClient.deleteObject(objectID)
+                        const deleteOp = index.deleteObject(objectID)
 
-                      if (searchConfig.waitForHook === true) {
-                        return deleteOp.wait()
+                        if (searchConfig.waitForHook === true) {
+                          return deleteOp.wait()
+                        }
+
+                        return Promise.resolve()
+                      } catch (error) {
+                        console.error(
+                          `Error deleting from search: ${error instanceof Error ? error.message : String(error)}`,
+                        )
+                        return Promise.resolve()
                       }
-
-                      return Promise.resolve()
-                    } catch (error) {
-                      console.error(
-                        `Error deleting from search: ${error instanceof Error ? error.message : String(error)}`,
-                      )
-                      return Promise.resolve()
-                    }
-                  },
-                ],
-              },
+                    },
+                  ],
+                },
+              }
             }
-          }
 
-          return collection
-        })
-        .filter(Boolean)
+            return collection
+          })
+          .filter(Boolean)
 
-      return {
-        ...config,
-        collections: [...(collectionsWithSearchHooks || [])],
+        return {
+          ...config,
+          collections: [...(collectionsWithSearchHooks || [])],
+        }
       }
-    }
 
-    return config
-  }
+      return config
+    }
 
 // Environment Configuration - Read from .env file
 const AWS_ACCESS_KEY = process.env.S3_ACCESS_KEY || process.env.AWS_ACCESS_KEY
@@ -273,25 +278,25 @@ export default buildConfig({
     }),
     // Conditionally add S3 storage if environment variables are available
     AWS_ACCESS_KEY &&
-      AWS_SECRET_KEY &&
-      AWS_ENDPOINT &&
-      s3Storage({
-        collections: {
-          media: {
-            prefix: 'media',
-          },
+    AWS_SECRET_KEY &&
+    AWS_ENDPOINT &&
+    s3Storage({
+      collections: {
+        media: {
+          prefix: 'media',
         },
-        bucket: 'Media',
-        config: {
-          forcePathStyle: true,
-          credentials: {
-            accessKeyId: AWS_ACCESS_KEY,
-            secretAccessKey: AWS_SECRET_KEY,
-          },
-          region: AWS_REGION,
-          endpoint: AWS_ENDPOINT,
+      },
+      bucket: 'Media',
+      config: {
+        forcePathStyle: true,
+        credentials: {
+          accessKeyId: AWS_ACCESS_KEY,
+          secretAccessKey: AWS_SECRET_KEY,
         },
-      }),
+        region: AWS_REGION,
+        endpoint: AWS_ENDPOINT,
+      },
+    }),
     // Disable Algolia plugin by default; re-enable if you prefer Algolia
   ].filter(Boolean),
 })

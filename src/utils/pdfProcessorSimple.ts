@@ -19,19 +19,19 @@ export interface PDFProcessResult {
 // Simple progress tracker for logging
 class ProgressTracker {
   private moduleId: string
-  
+
   constructor(moduleId: string) {
     this.moduleId = moduleId
   }
-  
+
   start() {
     console.log(`📊 Starting progress tracking for module ${this.moduleId}`)
   }
-  
+
   addStep(message: string) {
     console.log(message)
   }
-  
+
   complete(message: string) {
     console.log(`✅ ${message}`)
   }
@@ -126,33 +126,33 @@ export class PDFProcessor {
       // or process PDFs in a container with the necessary dependencies
       console.log('🔧 Creating placeholder images for PDF pages')
       const images: Buffer[] = []
-      
+
       // For now, create simple placeholder images for each page
       // This is a temporary solution - in production you'd want proper PDF rendering
       for (let page = 1; page <= totalPages; page++) {
         console.log(`📄 Creating placeholder for page ${page}/${totalPages}`)
-        
+
         // Extract the page from the PDF document
         const pdfDoc = await PDFDocument.load(pdfBuffer)
         const pages = pdfDoc.getPages()
         const currentPage = pages[page - 1]
-        
+
         // Create a new PDF with just this page
         const singlePagePdf = await PDFDocument.create()
         const [copiedPage] = await singlePagePdf.copyPages(pdfDoc, [page - 1])
         singlePagePdf.addPage(copiedPage)
-        
+
         // For now, we'll store the PDF page as a buffer
         // In a real implementation, you'd convert this to an image
         const pdfBytes = await singlePagePdf.save()
         images.push(Buffer.from(pdfBytes))
-        
+
         console.log(`✅ Created placeholder for page ${page}`)
       }
 
       // Restore Array.prototype
       for (const prop of pollutedProps) {
-        ;(Array.prototype as any)[prop] = arrayProtoBackup[prop]
+        ; (Array.prototype as any)[prop] = arrayProtoBackup[prop]
       }
 
       // Create slides from processed images with AI analysis
@@ -166,13 +166,13 @@ export class PDFProcessor {
         try {
           // Initialize AI analyzer only when API key is available
           const analyzer = new SlideAnalyzer()
-          
+
           // Prepare slides for batch analysis
           const slidesForAnalysis = images.map((buffer, index) => ({
             buffer,
             pageNumber: index + 1,
           }))
-          
+
           analyses = await analyzer.analyzeSlides(slidesForAnalysis, pdfFilename)
           console.log(`✅ AI analysis complete for ${analyses.length} slides`)
           progress.addStep(`✅ AI analysis complete for ${analyses.length} slides`)
@@ -218,9 +218,9 @@ export class PDFProcessor {
 
           // Get AI analysis for this slide (if available)
           const analysis = analyses[pageNum - 1]
-          const slideTitle = analysis?.title || `${path.parse(pdfFilename).name} - Page ${pageNum}`
-          const slideDescription = analysis?.description || `Page ${pageNum} from ${pdfFilename}`
-          const slideType = analysis?.type || 'regular'
+          const slideTitle = analysis?.Title || `${path.parse(pdfFilename).name} - Page ${pageNum}`
+          const slideDescription = analysis?.Description || `Page ${pageNum} from ${pdfFilename}`
+          const slideType = analysis?.Type?.toLowerCase() || 'regular'
 
           // Create slide with AI-enhanced data
           console.log(`🎯 Creating slide for page ${pageNum}...`)
@@ -312,7 +312,7 @@ export class PDFProcessor {
       console.log(`🎉 PDF processing completed successfully! Created ${slidesCreated} slides.`)
 
       // Collect slide types for reporting
-      const slideTypes = analyses.map((a) => a?.type || 'regular')
+      const slideTypes = analyses.map((a) => a?.Type?.toLowerCase() || 'regular')
       const aiAnalysisUsed = analyses.length > 0 && !!process.env.OPENAI_API_KEY
 
       if (aiAnalysisUsed) {
