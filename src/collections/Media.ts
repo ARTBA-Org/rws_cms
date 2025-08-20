@@ -33,6 +33,19 @@ const Media: CollectionConfig = {
   },
   fields: [
     {
+      name: 'type',
+      type: 'text',
+      label: 'Type',
+      defaultValue: 'media',
+      admin: { readOnly: true, position: 'sidebar' },
+      access: { update: () => false },
+      hooks: {
+        beforeChange: [
+          () => 'media',
+        ],
+      },
+    },
+    {
       name: 'alt',
       type: 'text',
       required: false,

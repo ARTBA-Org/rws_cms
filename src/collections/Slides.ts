@@ -11,6 +11,19 @@ const Slides: CollectionConfig = {
   },
   fields: [
     {
+      name: 'collectionType',
+      type: 'text',
+      label: 'Collection Type',
+      defaultValue: 'slides',
+      admin: { readOnly: true, position: 'sidebar' },
+      access: { update: () => false },
+      hooks: {
+        beforeChange: [
+          () => 'slides',
+        ],
+      },
+    },
+    {
       name: 'title',
       type: 'text',
       required: true,

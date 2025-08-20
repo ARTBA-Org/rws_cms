@@ -135,6 +135,7 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
+  type?: string | null;
   name?: string | null;
   userRole: 'admin' | 'user';
   updatedAt: string;
@@ -161,6 +162,7 @@ export interface User {
  */
 export interface Media {
   id: number;
+  type?: string | null;
   alt?: string | null;
   prefix?: string | null;
   updatedAt: string;
@@ -199,6 +201,7 @@ export interface Media {
  */
 export interface Course {
   id: number;
+  type?: string | null;
   title: string;
   /**
    * Auto-generated from title (editable)
@@ -236,6 +239,7 @@ export interface Course {
  */
 export interface Module {
   id: number;
+  type?: string | null;
   title: string;
   /**
    * Auto-generated from title (editable)
@@ -272,6 +276,7 @@ export interface Module {
  */
 export interface Slide {
   id: number;
+  collectionType?: string | null;
   title: string;
   /**
    * Auto-generated from title (editable)
@@ -517,6 +522,7 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  type?: T;
   name?: T;
   userRole?: T;
   updatedAt?: T;
@@ -541,6 +547,7 @@ export interface UsersSelect<T extends boolean = true> {
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
+  type?: T;
   alt?: T;
   prefix?: T;
   updatedAt?: T;
@@ -584,6 +591,7 @@ export interface MediaSelect<T extends boolean = true> {
  * via the `definition` "courses_select".
  */
 export interface CoursesSelect<T extends boolean = true> {
+  type?: T;
   title?: T;
   slug?: T;
   description?: T;
@@ -614,6 +622,7 @@ export interface CoursesSelect<T extends boolean = true> {
  * via the `definition` "modules_select".
  */
 export interface ModulesSelect<T extends boolean = true> {
+  type?: T;
   title?: T;
   slug?: T;
   description?: T;
@@ -640,6 +649,7 @@ export interface ModulesSelect<T extends boolean = true> {
  * via the `definition` "slides_select".
  */
 export interface SlidesSelect<T extends boolean = true> {
+  collectionType?: T;
   title?: T;
   slug?: T;
   source?:

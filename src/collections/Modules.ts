@@ -13,6 +13,19 @@ const Modules: CollectionConfig = {
 
   fields: [
     {
+      name: 'type',
+      type: 'text',
+      label: 'Type',
+      defaultValue: 'modules',
+      admin: { readOnly: true, position: 'sidebar' },
+      access: { update: () => false },
+      hooks: {
+        beforeChange: [
+          () => 'modules',
+        ],
+      },
+    },
+    {
       name: 'title',
       type: 'text',
       required: true,

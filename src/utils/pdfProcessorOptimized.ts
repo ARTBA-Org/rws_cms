@@ -157,44 +157,46 @@ export class PDFProcessorOptimized {
         }
       }
 
-      // Update module with new slides
+      // Update module with slides by consolidating ALL slide IDs for this module
       if (slideIds.length > 0) {
         console.log('💾 Updating module with new slides...')
 
         try {
-          // Get current slides without loading full relationships
-          const currentModule = await payload.findByID({
-            collection: 'modules',
-            id: String(moduleId),
-            depth: 0, // Don't populate relationships when reading
+          // Query all slides for this module (idempotent union), not just the ones we just processed
+          const allSlidesForModule = await payload.find({
+            collection: 'slides',
+            where: {
+              and: [
+                { 'source.module': { equals: Number(moduleId) } },
+              ],
+            },
+            limit: 1000,
+            depth: 0,
             overrideAccess: true,
           })
 
-          const existingSlidesRaw = (currentModule as any).slides || []
-          const existingSlides = Array.isArray(existingSlidesRaw)
-            ? existingSlidesRaw.map((s: any) => (typeof s === 'object' ? s.id : s)).filter(Boolean)
-            : []
+          const allSlideIds = (allSlidesForModule.docs as any[])
+            .map((s) => (typeof s === 'object' ? s.id : s))
+            .filter(Boolean)
+
           console.log(
-            `📊 Adding ${slideIds.length} new slides to ${existingSlides.length} existing slides`,
+            `📊 Adding ${slideIds.length} new slides; consolidating to ${allSlideIds.length} total slides for module ${moduleId}`,
           )
 
-          // Simple update with just the slide IDs
           await payload.update({
             collection: 'modules',
             id: String(moduleId),
             data: {
-              slides: Array.from(new Set([...existingSlides, ...slideIds])),
+              slides: Array.from(new Set(allSlideIds)),
             },
             overrideAccess: true,
-            depth: 0, // Don't return populated relationships
+            depth: 0,
           })
 
           console.log(`✅ Module ${moduleId} updated successfully`)
         } catch (updateError: any) {
-          // If update fails, the slides are still created
           console.error('❌ Failed to link slides to module:', updateError.message)
           console.log('📝 Created slide IDs that need manual linking:', slideIds)
-          // Don't throw - we'll handle this in the catch block
           throw updateError
         }
       }

@@ -9,6 +9,19 @@ const Courses: CollectionConfig = {
   },
   fields: [
     {
+      name: 'type',
+      type: 'text',
+      label: 'Type',
+      defaultValue: 'courses',
+      admin: { readOnly: true, position: 'sidebar' },
+      access: { update: () => false },
+      hooks: {
+        beforeChange: [
+          () => 'courses',
+        ],
+      },
+    },
+    {
       name: 'title',
       type: 'text',
       required: true,

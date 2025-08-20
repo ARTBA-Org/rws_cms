@@ -15,6 +15,19 @@ const PdfPages: CollectionConfig = {
   },
   fields: [
     {
+      name: "type",
+      type: "text",
+      label: "Type",
+      defaultValue: "pdf-pages",
+      admin: { readOnly: true, position: "sidebar" },
+      access: { update: () => false },
+      hooks: {
+        beforeChange: [
+          () => "pdf-pages",
+        ],
+      },
+    },
+    {
       name: "title",
       type: "text",
       required: true,

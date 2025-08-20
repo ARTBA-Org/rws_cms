@@ -8,6 +8,19 @@ const Users: CollectionConfig = {
   },
   fields: [
     {
+      name: 'type',
+      type: 'text',
+      label: 'Type',
+      defaultValue: 'users',
+      admin: { readOnly: true, position: 'sidebar' },
+      access: { update: () => false },
+      hooks: {
+        beforeChange: [
+          () => 'users',
+        ],
+      },
+    },
+    {
       name: 'email',
       type: 'email',
       required: true,
