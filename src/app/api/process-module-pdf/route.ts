@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '../../../payload.config'
 import { PDFProcessorOptimized } from '../../../utils/pdfProcessorOptimized'
+import type { PopulatedModule } from '../../../types/pdfTypes'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,15 +17,20 @@ export async function POST(request: NextRequest) {
     const payload = await getPayload({ config })
 
     // Load module and ensure pdfUpload exists
-    const mod: any = await payload.findByID({ collection: 'modules', id: String(moduleId) })
+    const mod = await payload.findByID({ 
+      collection: 'modules', 
+      id: String(moduleId),
+      depth: 1 // Populate pdfUpload 
+    }) as PopulatedModule
+    
     const pdfUpload = mod.pdfUpload
-    const mediaId = typeof pdfUpload === 'object' ? (pdfUpload as any).id : pdfUpload
+    const mediaId = typeof pdfUpload === 'object' ? pdfUpload?.id : pdfUpload
     if (!mediaId) {
       return NextResponse.json({ error: 'Module has no pdfUpload set' }, { status: 400 })
     }
 
     // Get the media document
-    const mediaDoc: any = await payload.findByID({
+    const mediaDoc = await payload.findByID({
       collection: 'media',
       id: String(mediaId),
     })

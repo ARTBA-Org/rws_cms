@@ -1,9 +1,12 @@
 import OpenAI from 'openai'
+import { withRetry, isRetryableOpenAIError } from './retryUtils'
+import { PDF_CONFIG } from './pdfConfig'
+import type { SlideType } from '../types/pdfTypes'
 
 export interface SlideAnalysis {
   Title: string
   Description: string
-  Type: 'Regular' | 'Video' | 'Quiz' | 'Reference' | 'Resources'
+  Type: SlideType
 }
 
 export class SlideAnalyzer {
@@ -23,9 +26,10 @@ export class SlideAnalyzer {
   async analyzeSlide(imageBuffer: Buffer, pageNumber: number, filename: string): Promise<SlideAnalysis> {
     try {
       const imageBase64 = imageBuffer.toString('base64')
-      const model = process.env.OPENAI_MODEL || 'gpt-5-nano'
+      const model = PDF_CONFIG.openaiModel
 
-      const response: any = await this.openai.responses.create({
+      const response: any = await withRetry(
+        () => this.openai.responses.create({
         model,
         input: [
           {
@@ -56,7 +60,13 @@ export class SlideAnalyzer {
         reasoning: { effort: 'minimal' },
         tools: [],
         store: false,
-      })
+      }),
+        {
+          maxRetries: PDF_CONFIG.aiRetryAttempts,
+          baseDelayMs: 1000,
+          retryCondition: isRetryableOpenAIError,
+        }
+      )
 
       // Extract text content from Responses API (handle multiple shapes safely)
       const content: unknown =

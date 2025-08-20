@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PDF Worker Service
+  pdf-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      - DATABASE_URI=${DATABASE_URI}
+      - PAYLOAD_SECRET=${PAYLOAD_SECRET}
+      
+      # Redis configuration
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      
+      # Worker configuration
+      - PDF_WORKER_CONCURRENCY=2
+      - PDF_WORKER_MAX_JOBS=100
+      - PDF_WORKER_NAME=pdf-worker-docker
+      - PDF_AUTO_START_WORKER=true
+      
+      # PDF processing configuration
+      - PDF_ENABLE_IMAGES=true
+      - PDF_IMAGE_FORMAT=webp
+      - PDF_IMAGE_QUALITY=85
+      - PDF_IMAGE_DPI=300
+      - PDF_MAX_PAGES=50
+      - PDF_TIMEOUT_MS=120000
+      
+      # Browser configuration
+      - CHROME_HEADLESS=true
+      - BROWSER_POOL_MAX_INSTANCES=2
+      - BROWSER_POOL_MAX_PAGE_COUNT=20
+      
+      # Caching
+      - PDF_ENABLE_CACHING=true
+      - PDF_CACHE_EXPIRE_HOURS=24
+      
+      # Streaming
+      - PDF_ENABLE_STREAMING=true
+      - PDF_STREAM_CHUNK_SIZE=3
+      
+      # Webhooks (optional)
+      - PDF_WEBHOOK_URL=${PDF_WEBHOOK_URL:-}
+      
+      # Shutdown configuration
+      - PDF_WORKER_SHUTDOWN_TIMEOUT=60000
+      
+      # Node.js configuration
+      - NODE_ENV=production
+      - NODE_OPTIONS=--no-deprecation
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('Worker health check')"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Redis Commander for debugging
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    profiles:
+      - debug
+
+volumes:
+  redis_data:
+
+# Example usage:
+# 
+# Development:
+#   docker-compose -f docker-compose.worker.yml up -d
+#
+# Production:
+#   docker-compose -f docker-compose.worker.yml --profile production up -d
+#
+# With debugging tools:
+#   docker-compose -f docker-compose.worker.yml --profile debug up -d
+#
+# Scale workers:
+#   docker-compose -f docker-compose.worker.yml up -d --scale pdf-worker=3

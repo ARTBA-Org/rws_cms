@@ -5,6 +5,9 @@ import { PDFDocument } from 'pdf-lib'
 import sharp from 'sharp'
 import { existsSync } from 'fs'
 import path from 'path'
+import { withRetry, isRetryablePuppeteerError } from './retryUtils'
+import { PDF_CONFIG } from './pdfConfig'
+import { browserPool } from './browserPool'
 
 /**
  * Convert a single-page PDF buffer to a high-DPI PNG using Puppeteer.
@@ -17,12 +20,14 @@ import path from 'path'
 export async function convertPDFPageToImage(
     pdfBuffer: Buffer,
     pageNum: number = 1,
-    opts?: { dpi?: number; maxDimension?: number }
+    opts?: { dpi?: number; maxDimension?: number; format?: 'png' | 'webp'; quality?: number }
 ): Promise<Buffer | null> {
     let browser: Browser | null = null
 
-    const dpi = Math.max(96, Math.min(opts?.dpi ?? 300, 600))
-    const maxDim = Math.max(1024, Math.min(opts?.maxDimension ?? 6000, 12000))
+    const dpi = Math.max(96, Math.min(opts?.dpi ?? PDF_CONFIG.imageDPI, 600))
+    const maxDim = Math.max(1024, Math.min(opts?.maxDimension ?? PDF_CONFIG.maxImageDimension, 12000))
+    const format = opts?.format ?? PDF_CONFIG.imageFormat
+    const quality = Math.max(1, Math.min(opts?.quality ?? PDF_CONFIG.imageQuality, 100))
 
     try {
         // Determine the PDF page size in points (1 pt = 1/72 in)
@@ -40,13 +45,20 @@ export async function convertPDFPageToImage(
         heightPx = Math.max(1, Math.floor(heightPx * scale))
 
         console.log(
-            `🖼️ Puppeteer render target: ${widthPx}x${heightPx}px @ ${dpi} DPI (page ${pageNum})`,
+            `🖼️ Puppeteer render target: ${widthPx}x${heightPx}px @ ${dpi} DPI, format: ${format}, quality: ${quality} (page ${pageNum})`,
         )
 
-        // Launch Chromium with environment-aware resolution
-        browser = await launchChromium({ width: widthPx, height: heightPx })
+        // Get browser from pool with retry logic
+        browser = await withRetry(
+            () => browserPool.getBrowser(),
+            {
+                maxRetries: PDF_CONFIG.puppeteerRetryAttempts,
+                baseDelayMs: 1000,
+                retryCondition: isRetryablePuppeteerError,
+            }
+        )
 
-        const page = await browser.newPage()
+        const page = await browserPool.createPage(browser)
 
         // Exact viewport = PDF page pixel dimensions
         await page.setViewport({ width: widthPx, height: heightPx, deviceScaleFactor: 1 })
@@ -97,38 +109,62 @@ export async function convertPDFPageToImage(
                                 }`
         })
 
-        // Render with worker disabled (avoids needing worker file)
-        await page.evaluate((b64, pg, targetWidth) => (window as any).__renderSlide(b64, pg, targetWidth), base64, pageNum, widthPx)
+        // Render with worker disabled (avoids needing worker file) with retry logic
+        const rawPng = await withRetry(
+            async () => {
+                await page.evaluate((b64, pg, targetWidth) => (window as any).__renderSlide(b64, pg, targetWidth), base64, pageNum, widthPx)
 
-        // Screenshot only the canvas area
-        const rect = await page.$eval('#cvs', (el: any) => {
-            const r = el.getBoundingClientRect();
-            return { x: r.left, y: r.top, width: r.width, height: r.height };
-        })
-        const rawPng = (await page.screenshot({ type: 'png', clip: { x: Math.max(0, Math.floor(rect.x)), y: Math.max(0, Math.floor(rect.y)), width: Math.max(1, Math.ceil(rect.width)), height: Math.max(1, Math.ceil(rect.height)) } })) as Buffer
+                // Screenshot only the canvas area
+                const rect = await page.$eval('#cvs', (el: any) => {
+                    const r = el.getBoundingClientRect();
+                    return { x: r.left, y: r.top, width: r.width, height: r.height };
+                })
+                return (await page.screenshot({ type: 'png', clip: { x: Math.max(0, Math.floor(rect.x)), y: Math.max(0, Math.floor(rect.y)), width: Math.max(1, Math.ceil(rect.width)), height: Math.max(1, Math.ceil(rect.height)) } })) as Buffer
+            },
+            {
+                maxRetries: PDF_CONFIG.puppeteerRetryAttempts,
+                baseDelayMs: 500,
+                retryCondition: isRetryablePuppeteerError,
+            }
+        )
 
-        // Trim uniform white borders from edges to remove viewer/blank margins
-        // Use a moderate threshold to catch near-white backgrounds
-        let trimmed = await sharp(rawPng)
-            .trim({ threshold: 8, background: 'white' })
-            .toBuffer()
-
-        // Safety: if trimming removed too much (very small), fall back to raw
-        if (trimmed.length < 1024) {
-            trimmed = rawPng
+        // Process image based on format
+        let processedImage: Buffer
+        
+        if (format === 'webp') {
+            // Convert to WebP with quality setting and trim borders
+            processedImage = await sharp(rawPng)
+                .trim({ threshold: 8, background: 'white' })
+                .webp({ quality, effort: 4 }) // effort 4 is good balance between speed and compression
+                .toBuffer()
+        } else {
+            // Keep as PNG and trim borders
+            processedImage = await sharp(rawPng)
+                .trim({ threshold: 8, background: 'white' })
+                .png({ compressionLevel: 6, adaptiveFiltering: true })
+                .toBuffer()
         }
 
-        console.log(`✅ PNG rendered (${trimmed.length} bytes) at ~${widthPx}x${heightPx} (trimmed)`)
-        return trimmed
+        // Safety: if processing failed or result is too small, fall back to raw PNG
+        if (processedImage.length < 512) {
+            console.warn(`⚠️ Processed ${format} too small (${processedImage.length} bytes), using raw PNG`)
+            processedImage = rawPng
+        }
+
+        const compressionRatio = ((rawPng.length - processedImage.length) / rawPng.length * 100).toFixed(1)
+        console.log(`✅ ${format.toUpperCase()} rendered (${processedImage.length} bytes) at ~${widthPx}x${heightPx} (${compressionRatio}% compression)`)
+        
+        return processedImage
     } catch (error) {
         console.error(`❌ Error converting PDF page ${pageNum} to image:`, error)
         return null
     } finally {
         if (browser) {
             try {
-                await browser.close()
-            } catch (closeError) {
-                console.warn('Warning: Error closing browser:', closeError)
+                // Release browser back to pool instead of closing
+                await browserPool.releaseBrowser(browser)
+            } catch (releaseError) {
+                console.warn('Warning: Error releasing browser to pool:', releaseError)
             }
         }
     }

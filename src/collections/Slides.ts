@@ -27,15 +27,13 @@ const Slides: CollectionConfig = {
       hooks: {
         beforeValidate: [
           ({ data, operation }) => {
-            if (operation === 'create' || !data?.slug) {
-              if (data?.title) {
-                // Auto-generate slug from title
-                return data.title
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
-                  .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-                  .substring(0, 50) // Limit length
-              }
+            // Only auto-generate on create when slug is missing. Never regenerate on update.
+            if (operation === 'create' && !data?.slug && data?.title) {
+              return data.title
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                .substring(0, 50)
             }
             return data?.slug
           },

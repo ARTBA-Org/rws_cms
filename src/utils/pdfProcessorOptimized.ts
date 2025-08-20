@@ -5,31 +5,20 @@ import { extractTextFromPDF } from './pdfTextExtractor'
 import { SlideAnalyzer, type SlideAnalysis } from './slideAnalyzer'
 // Use Puppeteer-based image conversion for all environments
 import { convertPDFPageToImage } from './pdfToImagePuppeteer'
+import { PDF_CONFIG } from './pdfConfig'
+import { cacheManager } from './cache'
+import { s3ImageUploader } from './s3ImageUploader'
+import { CDN_CONFIG } from './cdnConfig'
+import type {
+  PDFProcessConfig,
+  PDFProcessResult,
+  SlideCreateData,
+  SlideType,
+  PopulatedModule,
+  PDFProcessingError
+} from '../types/pdfTypes'
 
-export interface PDFProcessConfig {
-  maxPages?: number
-  timeoutMs?: number
-  enableImages?: boolean
-  batchSize?: number
-  startPage?: number
-}
-
-export interface PDFProcessResult {
-  success: boolean
-  slidesCreated: number
-  errors?: string[]
-  warnings?: string[]
-  slideIds?: Array<number | string>
-  moduleUpdated?: boolean
-  textExtracted?: boolean
-  imagesGenerated?: boolean
-  totalPages?: number
-  pagesProcessed?: number
-  partialSuccess?: boolean
-  timeElapsed?: number
-  startPage?: number
-  nextStartPage?: number | null
-}
+// Types are now imported from ../types/pdfTypes
 
 export class PDFProcessorOptimized {
   private config: Required<PDFProcessConfig>
@@ -37,10 +26,10 @@ export class PDFProcessorOptimized {
 
   constructor(config: PDFProcessConfig = {}) {
     this.config = {
-      maxPages: config.maxPages || 10,
-      timeoutMs: config.timeoutMs || 25000, // Leave 3s buffer for Lambda 28s timeout
-      enableImages: config.enableImages !== false,
-      batchSize: config.batchSize || 1,
+      maxPages: config.maxPages || PDF_CONFIG.maxPages,
+      timeoutMs: config.timeoutMs || PDF_CONFIG.timeoutMs,
+      enableImages: config.enableImages ?? PDF_CONFIG.enableImages,
+      batchSize: config.batchSize || PDF_CONFIG.batchSize,
       startPage: config.startPage ?? 1,
     }
   }
@@ -274,7 +263,7 @@ export class PDFProcessorOptimized {
     }
   }
 
-  private async processSinglePage(
+  async processSinglePage(
     pageNum: number,
     totalPages: number,
     pdfDoc: PDFDocument,
@@ -285,6 +274,19 @@ export class PDFProcessorOptimized {
     moduleId: string,
   ): Promise<{ slideId: string | number; imageGenerated: boolean; wasExisting?: boolean } | null> {
     console.log(`📄 Processing page ${pageNum}/${totalPages}`)
+
+    // Check cache first if enabled
+    const cacheKey = { moduleId, pdfFilename, pageNum }
+    const cachedSlide = await cacheManager.getCachedSlide(cacheKey)
+
+    if (cachedSlide) {
+      console.log(`💾 Found cached slide for page ${pageNum}`)
+      return {
+        slideId: cachedSlide.slideId,
+        imageGenerated: cachedSlide.imageGenerated,
+        wasExisting: true,
+      }
+    }
 
     // Verify module exists before creating slide
     try {
@@ -333,36 +335,95 @@ export class PDFProcessorOptimized {
       const imageStartTime = Date.now()
 
       try {
-        // Use Puppeteer-based image conversion directly
+        // Use Puppeteer-based image conversion with configured format
         // Note: singlePageBuffer contains only one page, so we always use page 1
-        imageBuffer = await convertPDFPageToImage(singlePageBuffer, 1)
+        imageBuffer = await convertPDFPageToImage(singlePageBuffer, 1, {
+          format: PDF_CONFIG.imageFormat,
+          quality: PDF_CONFIG.imageQuality,
+        })
 
         if (imageBuffer && imageBuffer.length > 0) {
-          const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.png`
+          const fileExtension = PDF_CONFIG.imageFormat === 'webp' ? 'webp' : 'png'
+          const imageName = `${pdfFilename.replace('.pdf', '')}_page_${pageNum}.${fileExtension}`
 
-          // Folder functionality temporarily disabled due to compatibility issue
+          // Check if CDN is configured - use S3 if available, otherwise use Payload media
+          const useCDN = CDN_CONFIG.s3.bucketName && process.env.NODE_ENV === 'production'
 
-          const mediaDoc = await payload.create({
-            collection: 'media',
-            data: {
-              alt: `Page ${pageNum} from ${pdfFilename}`,
-            },
-            file: {
-              data: imageBuffer,
-              mimetype: 'image/png',
-              name: imageName,
-              size: imageBuffer.length,
-            },
-            overrideAccess: true,
-            depth: 0,
-          })
+          if (useCDN) {
+            try {
+              // Upload to S3 with CDN
+              const uploadResult = await s3ImageUploader.uploadImage(imageBuffer, {
+                moduleId: String(moduleId),
+                filename: imageName,
+                generateResponsive: true,
+                generateThumbnails: true,
+                customPath: `pdfs/${pdfFilename.replace('.pdf', '')}`,
+                metadata: {
+                  source: 'pdf-processor',
+                  pdfFilename,
+                  pageNumber: pageNum.toString(),
+                  totalPages: totalPages.toString(),
+                },
+              })
 
-          imageMediaId = mediaDoc.id
-          imageGenerated = true
-          const imageTime = Date.now() - imageStartTime
-          console.log(
-            `✅ Image ${imageMediaId} generated in ${imageTime}ms (${(imageBuffer.length / 1024).toFixed(1)}KB)`,
-          )
+              if (uploadResult.success) {
+                // Create a minimal media record that references the CDN URL
+                const mediaDoc = await payload.create({
+                  collection: 'media',
+                  data: {
+                    alt: `Page ${pageNum} from ${pdfFilename}`,
+                    filename: imageName,
+                    url: uploadResult.urls.original,
+                    width: uploadResult.metadata.dimensions.width,
+                    height: uploadResult.metadata.dimensions.height,
+                    filesize: uploadResult.metadata.size,
+                    mimeType: PDF_CONFIG.imageFormat === 'webp' ? 'image/webp' : 'image/png',
+                    s3Key: uploadResult.metadata.key,
+                    cdnUrls: uploadResult.urls,
+                  },
+                  overrideAccess: true,
+                  depth: 0,
+                })
+
+                imageMediaId = mediaDoc.id
+                imageGenerated = true
+                const imageTime = Date.now() - imageStartTime
+                console.log(
+                  `✅ CDN Image ${imageMediaId} uploaded in ${imageTime}ms (${(imageBuffer.length / 1024).toFixed(1)}KB) - ${uploadResult.urls.original}`,
+                )
+              } else {
+                throw new Error(`S3 upload failed: ${uploadResult.errors?.join(', ')}`)
+              }
+            } catch (cdnError) {
+              console.warn(`⚠️ CDN upload failed, falling back to Payload media:`, cdnError)
+              // Fall through to Payload media creation
+            }
+          }
+
+          // Fallback to Payload media system if CDN upload failed or is disabled
+          if (!imageMediaId) {
+            const mediaDoc = await payload.create({
+              collection: 'media',
+              data: {
+                alt: `Page ${pageNum} from ${pdfFilename}`,
+              },
+              file: {
+                data: imageBuffer,
+                mimetype: PDF_CONFIG.imageFormat === 'webp' ? 'image/webp' : 'image/png',
+                name: imageName,
+                size: imageBuffer.length,
+              },
+              overrideAccess: true,
+              depth: 0,
+            })
+
+            imageMediaId = mediaDoc.id
+            imageGenerated = true
+            const imageTime = Date.now() - imageStartTime
+            console.log(
+              `✅ Payload Image ${imageMediaId} generated in ${imageTime}ms (${(imageBuffer.length / 1024).toFixed(1)}KB)`,
+            )
+          }
         }
       } catch (imageError) {
         console.error(`❌ Image generation failed for page ${pageNum}:`, imageError)
@@ -371,7 +432,7 @@ export class PDFProcessorOptimized {
 
     // AI Analysis for enhanced slide data (reuse the same image buffer)
     let aiAnalysis: SlideAnalysis | null = null
-    if (process.env.OPENAI_API_KEY && imageBuffer) {
+    if (PDF_CONFIG.enableAI && imageBuffer) {
       try {
         console.log(`🤖 Starting AI analysis for page ${pageNum}...`)
         const analyzer = new SlideAnalyzer()
@@ -381,20 +442,26 @@ export class PDFProcessorOptimized {
       } catch (aiError) {
         console.warn(`⚠️ AI analysis failed for page ${pageNum}:`, aiError)
       }
-    } else if (!process.env.OPENAI_API_KEY) {
-      console.log(`⚠️ OPENAI_API_KEY not set, skipping AI analysis for page ${pageNum}`)
+    } else if (!PDF_CONFIG.enableAI) {
+      console.log(`⚠️ AI analysis disabled, skipping for page ${pageNum}`)
     }
 
     // Generate title and description (use AI data if available, fallback to text extraction)
     const title = aiAnalysis?.Title || this.generateTitle(pageText, pdfFilename, pageNum)
     const description = aiAnalysis?.Description || this.generateDescription(pageText, pageNum, totalPages, width, height)
-    const slideType = aiAnalysis?.Type?.toLowerCase() || this.detectSlideType(pageText)
-    // Create slide
-    const slideData: any = {
+    const slideType = (aiAnalysis?.Type?.toLowerCase() || this.detectSlideType(pageText)) as SlideType
+
+    // Create properly typed slide data
+    const slideData: SlideCreateData = {
       title,
-      description,
+      description: description || undefined,
       type: slideType,
       urls: [],
+      source: {
+        pdfFilename,
+        pdfPage: pageNum,
+        module: Number(moduleId),
+      },
     }
 
     if (imageMediaId) {
@@ -477,9 +544,22 @@ export class PDFProcessorOptimized {
 
     // Folder functionality temporarily disabled due to compatibility issue
 
+    // Generate a safe, unique slug to avoid validation/unique conflicts in Payload
+    const rawSlugBase = (slideData.title || `${pdfFilename.replace('.pdf', '')}-page-${pageNum}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+      .replace(/^-+|-+$/g, '')
+    // Append module and page suffix to ensure uniqueness for repeated titles and across modules
+    const slugSuffix = `-m${moduleId}-p${pageNum}`
+    // Reserve room for suffix and trim to 50 chars total (Payload hook also limits to 50)
+    const slugLimit = 50
+    const baseLimit = Math.max(0, slugLimit - slugSuffix.length)
+    const finalSlug = `${rawSlugBase.substring(0, baseLimit)}${slugSuffix}`.substring(0, slugLimit)
+
     // Debug the data being sent
     const slideCreateData = {
       ...slideData,
+      slug: finalSlug,
       parent: Number(moduleId), // Set the parent relationship for nested docs (API field name)
       parent_id: Number(moduleId), // Set the parent_id for database (actual DB field name)
       source: {
@@ -532,6 +612,20 @@ export class PDFProcessorOptimized {
     }
 
     console.log(`✅ Slide ${slide.id} created for page ${pageNum}`)
+
+    // Cache the successfully created slide
+    try {
+      await cacheManager.setCachedSlide(cacheKey, {
+        slideId: slide.id,
+        title: slideData.title,
+        description: slideData.description || '',
+        type: slideData.type,
+        imageGenerated,
+      })
+      console.log(`💾 Cached slide ${slide.id} for future requests`)
+    } catch (cacheError) {
+      console.warn('⚠️ Failed to cache slide:', cacheError)
+    }
 
     return {
       slideId: slide.id,
