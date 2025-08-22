@@ -1,6 +1,6 @@
 # A string used to distinguish different Supabase projects on the same machine.
 # Not required if you have a single project.
-project_id = "rws-cms"
+project_id = "nwquaemdrfuhafnugbgl"
 
 [api]
 enabled = true

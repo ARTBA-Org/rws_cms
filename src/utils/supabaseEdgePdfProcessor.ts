@@ -34,7 +34,7 @@ export class SupabaseEdgePDFProcessor {
     timeout?: number
     retryAttempts?: number
   } = {}) {
-    const supabaseUrl = options.supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
+    const supabaseUrl = options.supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nwquaemdrfuhafnugbgl.supabase.co'
     this.edgeFunctionUrl = `${supabaseUrl}/functions/v1/process-pdf`
     
     this.config = {
