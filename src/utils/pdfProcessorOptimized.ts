@@ -167,7 +167,7 @@ export class PDFProcessorOptimized {
             collection: 'slides',
             where: {
               and: [
-                { 'source.module': { equals: Number(moduleId) } },
+                { parent: { equals: Number(moduleId) } },
               ],
             },
             limit: 1000,
