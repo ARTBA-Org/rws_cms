@@ -20,17 +20,9 @@ applications:
             - export NEXT_TELEMETRY_DISABLED=1
             - export NEXT_BUILD_SKIP_DB=true
             - echo "Verifying critical environment variables"
-            - |
-              if [ -z "$DATABASE_URI" ]; then
-                echo "ERROR: DATABASE_URI environment variable is not set"
-                exit 1
-              fi
-            - |
-              if [ -z "$PAYLOAD_SECRET" ]; then
-                echo "ERROR: PAYLOAD_SECRET environment variable is not set"
-                exit 1
-              fi
-            - echo "DATABASE_URI is configured: ${DATABASE_URI:0:20}..."
+            - 'if [ -z "$DATABASE_URI" ]; then echo "ERROR: DATABASE_URI environment variable is not set"; exit 1; fi'
+            - 'if [ -z "$PAYLOAD_SECRET" ]; then echo "ERROR: PAYLOAD_SECRET environment variable is not set"; exit 1; fi'
+            - 'echo "DATABASE_URI is configured: ${DATABASE_URI:0:20}..."'
             - echo "Building Next.js application"
             - NODE_OPTIONS=--no-warnings npm run build
       artifacts:
