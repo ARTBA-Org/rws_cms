@@ -87,7 +87,7 @@ const Modules: CollectionConfig = {
       type: 'ui',
       admin: {
         components: {
-          Field: '@/components/PdfProcessorField#PdfProcessorField',
+          Field: '@/components/PdfProcessorExternalField#PdfProcessorExternalField',
         },
       },
     },

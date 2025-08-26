@@ -24,6 +24,15 @@ export interface PDFProcessResult {
   timeElapsed?: number;
   startPage?: number;
   nextStartPage?: number | null;
+  extractedSlides?: ExtractedSlide[];
+}
+
+export interface ExtractedSlide {
+  pageNumber: number;
+  title: string;
+  description: string;
+  type: SlideType;
+  text: string;
 }
 
 // Slide Creation Types

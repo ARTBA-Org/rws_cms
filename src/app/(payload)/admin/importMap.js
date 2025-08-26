@@ -1,5 +1,5 @@
 import { ExportListMenuItem as ExportListMenuItem_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
-import { PdfProcessorField as PdfProcessorField_04081c77eeabd68c800c3a0f58690be3 } from '@/components/PdfProcessorField'
+import { PdfProcessorExternalField as PdfProcessorExternalField_78437773cbb313623e5e9c97429cdec5 } from '@/components/PdfProcessorExternalField'
 import { SortBy as SortBy_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
 import { SelectionToUseField as SelectionToUseField_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
 import { FieldsToExport as FieldsToExport_cdf7e044479f899a31f804427d568b36 } from '@payloadcms/plugin-import-export/rsc'
@@ -11,7 +11,7 @@ import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc056
 
 export const importMap = {
   "@payloadcms/plugin-import-export/rsc#ExportListMenuItem": ExportListMenuItem_cdf7e044479f899a31f804427d568b36,
-  "@/components/PdfProcessorField#PdfProcessorField": PdfProcessorField_04081c77eeabd68c800c3a0f58690be3,
+  "@/components/PdfProcessorExternalField#PdfProcessorExternalField": PdfProcessorExternalField_78437773cbb313623e5e9c97429cdec5,
   "@payloadcms/plugin-import-export/rsc#SortBy": SortBy_cdf7e044479f899a31f804427d568b36,
   "@payloadcms/plugin-import-export/rsc#SelectionToUseField": SelectionToUseField_cdf7e044479f899a31f804427d568b36,
   "@payloadcms/plugin-import-export/rsc#FieldsToExport": FieldsToExport_cdf7e044479f899a31f804427d568b36,

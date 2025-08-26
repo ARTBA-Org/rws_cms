@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: PDF Extractor API using FastAPI and Lambda Web Adapter
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+
+Resources:
+  PdfExtractorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          AI_PROVIDER: openai
+          OPENAI_API_KEY: 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
+          OPENAI_MODEL: gpt-4o-mini
+          CORS_ORIGINS: http://localhost:3000,https://localhost:3000
+          AWS_LWA_INVOKE_MODE: response_stream
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/extensions/lambda-adapter
+      Events:
+        ProxyResource:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        RootResource:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./
+
+Outputs:
+  PdfExtractorApi:
+    Description: "API Gateway endpoint URL for PDF Extractor"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  PdfExtractorFunction:
+    Description: "PDF Extractor Lambda Function ARN"
+    Value: !GetAtt PdfExtractorFunction.Arn

@@ -27,7 +27,8 @@
         "get_anon_key",
         "generate_typescript_types",
         "search_docs",
-        "execute_sql"
+        "execute_sql",
+        "deploy_edge_function"
       ]
     },
     "awslabs.aws-serverless-mcp": {

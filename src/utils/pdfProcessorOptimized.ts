@@ -2,7 +2,7 @@ import { PDFDocument } from 'pdf-lib'
 import { getPayload } from 'payload'
 import config from '../payload.config'
 import { extractTextFromPDF } from './pdfTextExtractor'
-import { SlideAnalyzer, type SlideAnalysis } from './slideAnalyzer'
+// Removed SlideAnalyzer - now using FastAPI exclusively
 // Use Puppeteer-based image conversion for all environments
 import { convertPDFPageToImage } from './pdfToImagePuppeteer'
 import { PDF_CONFIG } from './pdfConfig'
@@ -432,24 +432,23 @@ export class PDFProcessorOptimized {
       }
     }
 
-    // AI Analysis for enhanced slide data (reuse the same image buffer)
-    let aiAnalysis: SlideAnalysis | null = null
+    // Use FastAPI for AI analysis instead of local SlideAnalyzer
+    let aiAnalysis: { Title: string; Description: string; Type: string } | null = null
     if (PDF_CONFIG.enableAI && imageBuffer) {
       try {
-        console.log(`🤖 Starting AI analysis for page ${pageNum}...`)
-        const analyzer = new SlideAnalyzer()
-
-        aiAnalysis = await analyzer.analyzeSlide(imageBuffer, pageNum, pdfFilename)
-        console.log(`✅ AI analysis completed for page ${pageNum}`)
+        console.log(`🤖 Starting FastAPI AI analysis for page ${pageNum}...`)
+        aiAnalysis = await this.callFastAPIAnalysis(imageBuffer, pageNum, pdfFilename)
+        console.log(`✅ FastAPI AI analysis completed for page ${pageNum}`)
       } catch (aiError) {
-        console.warn(`⚠️ AI analysis failed for page ${pageNum}:`, aiError)
+        console.warn(`⚠️ FastAPI AI analysis failed for page ${pageNum}:`, aiError)
       }
     } else if (!PDF_CONFIG.enableAI) {
       console.log(`⚠️ AI analysis disabled, skipping for page ${pageNum}`)
     }
 
-    // Generate title and description (use AI data if available, fallback to text extraction)
-    const title = aiAnalysis?.Title || this.generateTitle(pageText, pdfFilename, pageNum)
+    // Generate title and description (use FastAPI AI data if available, fallback to text extraction)
+    const baseTitle = aiAnalysis?.Title || this.generateTitle(pageText, pdfFilename, pageNum)
+    const title = baseTitle ? `${baseTitle}_${pageNum}` : `Slide_${pageNum}` // Add page number suffix
     const description = aiAnalysis?.Description || this.generateDescription(pageText, pageNum, totalPages, width, height)
     const slideType = (aiAnalysis?.Type?.toLowerCase() || this.detectSlideType(pageText)) as SlideType
 
@@ -657,6 +656,65 @@ export class PDFProcessorOptimized {
       return true
     }
     return false
+  }
+
+  /**
+   * Call FastAPI for AI analysis of slide image
+   */
+  private async callFastAPIAnalysis(
+    imageBuffer: Buffer,
+    pageNum: number,
+    pdfFilename: string
+  ): Promise<{ Title: string; Description: string; Type: string } | null> {
+    try {
+      const FASTAPI_URL = process.env.PDF_EXTRACTOR_URL || 'http://localhost:8080'
+
+      // Create form data for FastAPI
+      const formData = new FormData()
+      const imageBlob = new Blob([imageBuffer], { type: 'image/png' })
+      formData.append('file', imageBlob, `page_${pageNum}.png`)
+      formData.append('create_in_payload', 'false') // Just extract data, don't create slides
+      formData.append('max_pages', '1')
+
+      // Custom instruction to include page numbers in titles
+      const instruction = `You are a slide extraction engine. Extract slide information and return only JSON with the keys Title, Description, and Type.
+
+Rules:
+- Title: Copy the main heading exactly as shown on the slide.
+- Description: Copy the exact visible body text from the slide, preserving capitalization, punctuation, and paragraph breaks. Do not paraphrase or add any words. Exclude photo credits, page numbers, or decorative labels unless instructed otherwise.
+- Type: Select from {Regular, Video, Quiz, Reference, Resources}. If unclear, use Regular.
+- If a field is missing, use an empty string.
+- Do not include any other keys. Return a single JSON object only.`
+
+      formData.append('instruction', instruction)
+
+      console.log(`📤 Calling FastAPI for page ${pageNum} analysis...`)
+
+      const response = await fetch(`${FASTAPI_URL}/ingest`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`FastAPI error: ${response.status} - ${errorText}`)
+      }
+
+      const result = await response.json()
+
+      if (result.extracted) {
+        return {
+          Title: result.extracted.Title || result.extracted.title || '',
+          Description: result.extracted.Description || result.extracted.description || '',
+          Type: result.extracted.Type || result.extracted.type || 'Regular',
+        }
+      }
+
+      return null
+    } catch (error) {
+      console.error(`❌ FastAPI analysis failed for page ${pageNum}:`, error)
+      return null
+    }
   }
 
   private generateTitle(text: string, filename: string, pageNum: number): string {

@@ -1,0 +1,3 @@
+{"level":"info","message":"StdioMcpServer initialized","service":"mcp-server","timestamp":"2025-08-25T19:53:22.079Z"}
+{"level":"info","message":"Starting MCP server with stdio transport","service":"mcp-server","timestamp":"2025-08-25T19:53:22.079Z"}
+{"level":"info","message":"MCP server started with stdio transport","service":"mcp-server","timestamp":"2025-08-25T19:53:22.080Z"}

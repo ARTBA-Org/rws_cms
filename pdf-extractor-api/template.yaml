@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: pdf-extractor-api - backend deployment
+
+Resources:
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      
+
+  # Lambda Function with Web Adapter
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: /Users/abenezernuro/projects/Expos/rws_cms/pdf-extractor-api
+      Handler: run.sh
+      Runtime: python3.13
+      MemorySize: 512
+      Timeout: 30
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          PORT: 8000
+          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
+          
+          
+          OPENAI_API_KEY: sk-proj-SJ3WjW-Ip91-mSvqLe1sEzOgxoJV8FtGDLl3Z9e25YtKNzRAY0nZjP5lZiT3BlbkFJGMfcGRBTvyV9_lmCCTzABXrQHZVjYR3pJHcEVPZ1gOIdHWY8bKWZSYO2M
+          
+          OPENAI_MODEL: gpt-4o-mini
+          
+          CORS_ORIGINS: http://localhost:3000,https://localhost:3000
+          
+          
+          
+      
+      Layers:
+        
+        - !Sub "arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerX86:25"
+        
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /{proxy+}
+            Method: ANY
+        RootApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /
+            Method: ANY
+
+  
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/"
+
+  FunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt ApiFunction.Arn
+
+  FunctionName:
+    Description: Lambda function name
+    Value: !Ref ApiFunction
+
+  
