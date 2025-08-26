@@ -6,23 +6,26 @@ applications:
         preBuild:
           commands:
             - nvm use 20
+            - echo "Setting up environment with embedded secrets"
+            - node scripts/amplify-build-with-secrets.js
             - echo "Converting fix-amplify-build.js to CommonJS format for compatibility"
-            - mv scripts/fix-amplify-build.js scripts/fix-amplify-build.mjs
+            - mv scripts/fix-amplify-build.js scripts/fix-amplify-build.mjs || true
             - echo "Running automatic build fixes for Amplify deployment"
-            - node scripts/fix-amplify-build.mjs
+            - node scripts/fix-amplify-build.mjs || true
             - echo "Installing dependencies"
             - npm install
         build:
           commands:
-            - echo "Starting build process with database connection skipped"
-            - echo "Setting production environment variables"
+            - echo "Starting build process for production"
             - export NODE_ENV=production
             - export NEXT_TELEMETRY_DISABLED=1
             - export NEXT_BUILD_SKIP_DB=true
-            - echo "Verifying critical environment variables"
-            - 'if [ -z "$DATABASE_URI" ]; then echo "ERROR: DATABASE_URI environment variable is not set"; exit 1; fi'
-            - 'if [ -z "$PAYLOAD_SECRET" ]; then echo "ERROR: PAYLOAD_SECRET environment variable is not set"; exit 1; fi'
+            - echo "Environment variables will be read from AWS Amplify configuration"
+            - echo "Verifying critical environment variables are available"
+            - 'if [ -z "$DATABASE_URI" ]; then echo "ERROR: DATABASE_URI environment variable is not set in Amplify"; exit 1; fi'
+            - 'if [ -z "$PAYLOAD_SECRET" ]; then echo "ERROR: PAYLOAD_SECRET environment variable is not set in Amplify"; exit 1; fi'
             - 'echo "DATABASE_URI is configured: ${DATABASE_URI:0:20}..."'
+            - 'echo "PAYLOAD_SECRET is configured: ${PAYLOAD_SECRET:0:10}..."'
             - echo "Building Next.js application"
             - NODE_OPTIONS=--no-warnings npm run build
       artifacts:
